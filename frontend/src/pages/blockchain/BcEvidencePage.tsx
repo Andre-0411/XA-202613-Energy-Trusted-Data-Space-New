@@ -11,12 +11,15 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryEvidenceRange, submitEvidence, getEvidenceDetail, traceEvidence } from '@/api/blockchain';
 import type { Evidence } from '@/types/api';
+import PageContainer, { PageSection } from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import StatCard from '@/components/common/StatCard';
 import ChartCard from '@/components/common/ChartCard';
+import DataTable from '@/components/common/DataTable';
+import type { Column } from '@/components/common/DataTable';
 import FilterBar from '@/components/common/FilterBar';
 import type { FilterField } from '@/components/common/FilterBar';
 
@@ -185,10 +188,70 @@ const BcEvidencePage: React.FC = () => {
     if (name === 'type') { setFilterType(value); setPage(0); }
   };
 
-  const totalPages = Math.ceil(total / pageSize);
+  // ===== 表格列定义 =====
+  const columns: Column<Evidence>[] = useMemo(() => [
+    {
+      id: 'evidence_hash', label: '存证哈希', minWidth: 160,
+      render: (row) => (
+        <Tooltip content={row.evidence_hash}>
+          <Tag variant="outline">{(row.evidence_hash ?? '').slice(0, 12) + '...'}</Tag>
+        </Tooltip>
+      ),
+    },
+    {
+      id: 'evidence_type', label: '类型', minWidth: 120,
+      render: (row) => (
+        <StatusTag
+          status={EVIDENCE_TYPE_OPTIONS.find((o) => o.value === row.evidence_type)?.label ?? row.evidence_type}
+          color={evidenceTypeColor(row.evidence_type)}
+        />
+      ),
+    },
+    {
+      id: 'tx_hash', label: '交易哈希', minWidth: 140,
+      render: (row) => (
+        <Tooltip content={row.tx_hash ?? ''}>
+          <Tag variant="outline" theme="primary">
+            {(row.tx_hash?.slice(0, 10) ?? '—') + (row.tx_hash ? '...' : '')}
+          </Tag>
+        </Tooltip>
+      ),
+    },
+    { id: 'block_number', label: '区块号', minWidth: 100 },
+    {
+      id: 'uploader_did', label: '上传者 DID', minWidth: 180,
+      render: (row) => (
+        <span className="text-xs text-gray-600 font-mono truncate max-w-[160px] inline-block">
+          {(row.uploader_did ?? '').slice(0, 20)}...
+        </span>
+      ),
+    },
+    {
+      id: 'description', label: '描述', minWidth: 150,
+      render: (row) => (
+        <span className="text-xs text-gray-600 max-w-[150px] truncate inline-block">
+          {row.description ?? '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'created_at', label: '创建时间', minWidth: 160,
+      render: (row) => new Date(row.created_at).toLocaleString('zh-CN'),
+    },
+    {
+      id: 'actions', label: '操作', minWidth: 80, align: 'center',
+      render: (row) => (
+        <Tooltip content="查看详情">
+          <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center" onClick={() => detailMut.mutate(row.id)}>
+            <BrowseIcon />
+          </span>
+        </Tooltip>
+      ),
+    },
+  ], []);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="存证管理"
         subtitle="管理区块链存证记录，支持提交、溯源与详情查看"
@@ -225,88 +288,18 @@ const BcEvidencePage: React.FC = () => {
       />
 
       {/* 数据表格 */}
-      <div className="rounded-xl bg-white border border-gray-200 flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 z-10">
-              <tr className="border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-bold text-gray-600">存证哈希</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">类型</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">交易哈希</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">区块号</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">上传者 DID</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">描述</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">创建时间</th>
-                <th className="text-center px-4 py-3 font-bold text-gray-600 w-[80px]">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((row) => (
-                <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Tooltip content={row.evidence_hash}>
-                      <Tag variant="outline">{row.evidence_hash.slice(0, 12) + '...'}</Tag>
-                    </Tooltip>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusTag
-                      status={EVIDENCE_TYPE_OPTIONS.find((o) => o.value === row.evidence_type)?.label ?? row.evidence_type}
-                      color={evidenceTypeColor(row.evidence_type)}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Tooltip content={row.tx_hash ?? ''}>
-                      <Tag variant="outline" theme="primary">
-                        {(row.tx_hash?.slice(0, 10) ?? '—') + (row.tx_hash ? '...' : '')}
-                      </Tag>
-                    </Tooltip>
-                  </td>
-                  <td className="px-4 py-3">{row.block_number}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-gray-600 font-mono truncate max-w-[160px] inline-block">
-                      {row.uploader_did.slice(0, 20)}...
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-gray-600 max-w-[150px] truncate inline-block">
-                      {row.description ?? '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{new Date(row.created_at).toLocaleString('zh-CN')}</td>
-                  <td className="px-4 py-3 text-center">
-                    <Tooltip content="查看详情">
-                      <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center" onClick={() => detailMut.mutate(row.id)}>
-                        <BrowseIcon />
-                      </span>
-                    </Tooltip>
-                  </td>
-                </tr>
-              ))}
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400">暂无数据</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {/* 分页 */}
-        <div className="flex items-center justify-end px-4 py-3 border-t border-gray-200 gap-4">
-          <span className="text-xs text-gray-500">每页行数</span>
-          <select
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-            value={pageSize}
-            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
-          >
-            {[10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-          <span className="text-xs text-gray-500">{`${page * pageSize + 1}-${Math.min((page + 1) * pageSize, total)} / ${total}`}</span>
-          <div className="flex gap-1">
-            <button className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-50" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>上一页</button>
-            <button className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-50" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>下一页</button>
-          </div>
-        </div>
-      </div>
+      <PageSection padding="none">
+        <DataTable
+          columns={columns}
+          rows={items}
+          loading={isLoading}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPageSize(size); setPage(0); }}
+        />
+      </PageSection>
 
       {/* 提交存证弹窗 */}
       <Dialog visible={submitOpen} onClose={() => setSubmitOpen(false)} header="提交存证" width="480px" footer={
@@ -411,7 +404,7 @@ const BcEvidencePage: React.FC = () => {
       </Dialog>
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

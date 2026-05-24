@@ -123,8 +123,12 @@ request.interceptors.response.use(
             refresh_token: refreshToken,
           });
           const newToken = res.data?.data?.access_token || res.data?.access_token;
+          const newRefreshToken = res.data?.data?.refresh_token || res.data?.refresh_token;
           if (newToken) {
             localStorage.setItem(TOKEN_KEY, newToken);
+            if (newRefreshToken) {
+              localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+            }
             // 释放等待队列
             pendingRequests.forEach((cb) => cb(newToken));
             pendingRequests = [];

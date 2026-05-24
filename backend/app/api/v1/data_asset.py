@@ -3,8 +3,10 @@ import uuid
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
 from app.database import get_db
 from app.models.data_asset import DataAsset, DataAssetRating, DataSource
@@ -137,14 +139,137 @@ async def delete_data_asset(asset_id: str, db: AsyncSession = Depends(get_db), u
 
 @router.post("/{asset_id}/classify", response_model=ApiResponse)
 async def classify_asset(asset_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    """执行分类分级"""
+    """执行分类分级 - 使用增强分类引擎"""
     result = await db.execute(select(DataAsset).where(DataAsset.id == uuid.UUID(asset_id)))
     asset = result.scalar_one_or_none()
     if not asset:
         return ApiResponse(code=2001, message="资产未找到", data=None)
-    category_map = {"发电": 2, "用电": 3, "调度": 1, "市场": 2, "设备状态": 3, "地理信息": 4}
-    suggested_level = category_map.get(asset.category, 4)
-    return ApiResponse(data={"category": asset.category, "suggested_level": suggested_level})
+
+    # 使用增强分类引擎
+    from app.services.classify_service import classify_and_grade
+    from app.services.data_classifier import classify_by_field_types
+
+    classification_result = await classify_and_grade(
+        asset_name=asset.name,
+        asset_description=asset.description,
+        schema_def=asset.schema_def,
+        category=asset.category,
+    )
+
+    # 基于字段类型的分级
+    field_type_result = classify_by_field_types(asset.schema_def or {})
+
+    # 更新资产分类信息
+    asset.category = classification_result["category"]
+    asset.classification_level = classification_result["classification_level"]
+    asset.status = "classified"
+    await db.commit()
+    await db.refresh(asset)
+
+    return ApiResponse(data={
+        "asset_id": asset_id,
+        "category": classification_result["category"],
+        "classification_level": classification_result["classification_level"],
+        "confidence": classification_result["confidence"],
+        "reason": classification_result["reason"],
+        "suggested_tags": classification_result.get("suggested_tags", []),
+        "field_type_analysis": field_type_result,
+        "review_status": "auto_classified",
+    })
+
+
+class ClassificationReviewRequest(BaseModel):
+    """分类审核确认请求"""
+    confirmed_category: str = Field(description="确认的大类: 发电/用电/调度/市场/设备状态/地理信息")
+    confirmed_level: int = Field(ge=1, le=4, description="确认的安全级别: 1核心/2重要/3一般/4公开")
+    review_comment: Optional[str] = Field(default=None, max_length=500, description="审核意见")
+
+
+class ClassificationOverrideRequest(BaseModel):
+    """分级覆盖请求"""
+    new_category: str = Field(description="新的大类")
+    new_level: int = Field(ge=1, le=4, description="新的安全级别")
+    override_reason: str = Field(min_length=5, max_length=500, description="覆盖原因（必填，不少于5字）")
+
+
+@router.post("/{asset_id}/classify/review", response_model=ApiResponse)
+async def review_classification(
+    asset_id: str,
+    request: ClassificationReviewRequest,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    人工审核确认分类分级结果
+
+    审核人确认自动分类结果的准确性，可以原样确认或修改分类和级别。
+    """
+    result = await db.execute(select(DataAsset).where(DataAsset.id == uuid.UUID(asset_id)))
+    asset = result.scalar_one_or_none()
+    if not asset:
+        return ApiResponse(code=2001, message="资产未找到", data=None)
+
+    # 更新资产分类
+    asset.category = request.confirmed_category
+    asset.classification_level = request.confirmed_level
+    asset.status = "classified"
+    await db.commit()
+    await db.refresh(asset)
+
+    from app.services.data_classifier import confirm_classification
+    review_result = await confirm_classification(
+        asset_id=asset_id,
+        confirmed_category=request.confirmed_category,
+        confirmed_level=request.confirmed_level,
+        reviewer_id=user.get("user_id", ""),
+        review_comment=request.review_comment,
+    )
+
+    logger.info(f"分类审核确认: asset_id={asset_id}, user={user.get('user_id')}")
+    return ApiResponse(data=review_result)
+
+
+@router.post("/{asset_id}/classify/override", response_model=ApiResponse)
+async def override_classification(
+    asset_id: str,
+    request: ClassificationOverrideRequest,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    人工覆盖分级结果
+
+    当自动分类不准确时，允许人工覆盖分类和安全级别。
+    必须提供覆盖原因。
+    """
+    result = await db.execute(select(DataAsset).where(DataAsset.id == uuid.UUID(asset_id)))
+    asset = result.scalar_one_or_none()
+    if not asset:
+        return ApiResponse(code=2001, message="资产未找到", data=None)
+
+    # 更新资产分类
+    old_category = asset.category
+    old_level = asset.classification_level
+    asset.category = request.new_category
+    asset.classification_level = request.new_level
+    asset.status = "classified"
+    await db.commit()
+    await db.refresh(asset)
+
+    from app.services.data_classifier import override_classification
+    override_result = await override_classification(
+        asset_id=asset_id,
+        new_category=request.new_category,
+        new_level=request.new_level,
+        override_reason=request.override_reason,
+        operator_id=user.get("user_id", ""),
+    )
+
+    override_result["old_category"] = old_category
+    override_result["old_level"] = old_level
+
+    logger.info(f"分级覆盖: asset_id={asset_id}, {old_category}/{old_level} -> {request.new_category}/{request.new_level}")
+    return ApiResponse(data=override_result)
 
 
 @router.post("/{asset_id}/publish", response_model=ApiResponse)

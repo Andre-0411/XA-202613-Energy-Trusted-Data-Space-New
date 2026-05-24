@@ -1,10 +1,11 @@
 """
 ABAC 策略管理 API - /api/v1/security/abac
-策略 CRUD + 属性管理 + 策略评估 + 策略模板 + 策略模拟
+策略 CRUD + 属性管理 + 策略评估 + 策略模板 + 策略模拟 + 动态授权
 """
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Path
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -17,6 +18,28 @@ from app.utils.deps import get_current_user
 from app.services import abac_service
 
 router = APIRouter()
+
+
+# ==================== 动态授权请求模型 ====================
+
+class TemporaryAuthRequest(BaseModel):
+    """临时授权请求"""
+    subject_did: str = Field(description="被授权方 DID")
+    resource_type: str = Field(description="资源类型")
+    resource_id: str = Field(description="资源 ID，'*' 表示所有")
+    action: str = Field(description="授权操作，'*' 表示所有")
+    expires_in_seconds: int = Field(default=3600, description="过期时间（秒）")
+    reason: str = Field(default="", description="授权原因")
+
+
+class ConditionalAuthRequest(BaseModel):
+    """条件授权请求"""
+    subject_did: str = Field(description="被授权方 DID")
+    resource_type: str = Field(description="资源类型")
+    resource_id: str = Field(description="资源 ID")
+    action: str = Field(description="授权操作")
+    conditions: dict = Field(description="授权条件")
+    reason: str = Field(default="", description="授权原因")
 
 
 # ==================== 属性管理 ====================
@@ -179,4 +202,106 @@ async def simulate_evaluation(
 ):
     """模拟策略评估（不影响实际授权）"""
     result = await abac_service.simulate_evaluation(db=db, request=request)
+    return ApiResponse(data=result)
+
+
+# ==================== 动态授权 ====================
+
+@router.post("/temp-auth", response_model=ApiResponse, status_code=201)
+async def create_temporary_authorization(
+    request: TemporaryAuthRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    创建临时授权
+
+    临时授权在指定时间后自动过期，适用于临时数据访问、紧急运维操作等场景
+    """
+    result = await abac_service.create_temporary_authorization(
+        subject_did=request.subject_did,
+        resource_type=request.resource_type,
+        resource_id=request.resource_id,
+        action=request.action,
+        granted_by=user.get("user_id", ""),
+        expires_in_seconds=request.expires_in_seconds,
+        reason=request.reason,
+    )
+    return ApiResponse(data=result)
+
+
+@router.get("/temp-auth", response_model=ApiResponse)
+async def list_temporary_authorizations(
+    subject_did: Optional[str] = Query(None, description="主体 DID 过滤"),
+    status: Optional[str] = Query(None, description="状态过滤: active/expired/revoked"),
+    user: dict = Depends(get_current_user),
+):
+    """列出临时授权"""
+    result = await abac_service.list_temporary_authorizations(
+        subject_did=subject_did,
+        status=status,
+    )
+    return ApiResponse(data=result)
+
+
+@router.delete("/temp-auth/{auth_id}", response_model=ApiResponse)
+async def revoke_temporary_authorization(
+    auth_id: str = Path(description="授权 ID"),
+    user: dict = Depends(get_current_user),
+):
+    """撤销临时授权"""
+    result = await abac_service.revoke_temporary_authorization(auth_id)
+    if not result:
+        return ApiResponse(code=2001, message="临时授权未找到")
+    return ApiResponse(data=result)
+
+
+@router.post("/cond-auth", response_model=ApiResponse, status_code=201)
+async def create_conditional_authorization(
+    request: ConditionalAuthRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    创建条件授权
+
+    条件授权在满足指定条件时才生效，支持的条件类型：
+    - time_range: 时间范围限制 {start, end}
+    - ip_whitelist: IP 白名单 {ips: [...]}
+    - max_access_count: 最大访问次数 {count: N}
+    - purpose: 使用目的限制 {purposes: [...]}
+    """
+    result = await abac_service.create_conditional_authorization(
+        subject_did=request.subject_did,
+        resource_type=request.resource_type,
+        resource_id=request.resource_id,
+        action=request.action,
+        conditions=request.conditions,
+        granted_by=user.get("user_id", ""),
+        reason=request.reason,
+    )
+    return ApiResponse(data=result)
+
+
+@router.get("/cond-auth", response_model=ApiResponse)
+async def list_conditional_authorizations(
+    subject_did: Optional[str] = Query(None, description="主体 DID 过滤"),
+    status: Optional[str] = Query(None, description="状态过滤"),
+    user: dict = Depends(get_current_user),
+):
+    """列出条件授权"""
+    result = await abac_service.list_conditional_authorizations(
+        subject_did=subject_did,
+        status=status,
+    )
+    return ApiResponse(data=result)
+
+
+@router.delete("/cond-auth/{auth_id}", response_model=ApiResponse)
+async def revoke_conditional_authorization(
+    auth_id: str = Path(description="授权 ID"),
+    user: dict = Depends(get_current_user),
+):
+    """撤销条件授权"""
+    result = await abac_service.revoke_conditional_authorization(auth_id)
+    if not result:
+        return ApiResponse(code=2001, message="条件授权未找到")
     return ApiResponse(data=result)

@@ -38,7 +38,7 @@ class NftAsset(Base, UUIDMixin):
 
 
 class EvidenceRecord(Base, UUIDMixin):
-    """存证记录表"""
+    """存证记录表（增强版：支持链式哈希和全链路存证）"""
     __tablename__ = "evidence_records"
 
     node_type: Mapped[str] = mapped_column(String(30), nullable=False)
@@ -50,6 +50,12 @@ class EvidenceRecord(Base, UUIDMixin):
     tx_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     block_number: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     timestamp: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # 链式哈希字段
+    prev_hash: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    chain_hash: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    # 操作主体和签名
+    operator_did: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    operator_signature: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, default=lambda: datetime.now()
     )
@@ -58,6 +64,7 @@ class EvidenceRecord(Base, UUIDMixin):
         Index("idx_evidence_node_type", "node_type"),
         Index("idx_evidence_resource", "resource_id", "resource_type"),
         Index("idx_evidence_tx_hash", "tx_hash"),
+        Index("idx_evidence_chain_hash", "chain_hash"),
     )
 
 

@@ -97,39 +97,123 @@ async def get_mongo_db():
 # ==================== Redis ====================
 
 redis_pool: aioredis.Redis | None = None
+_redis_available: bool = True  # Redis 可用标记，用于 fail-open
 
 
-def _get_redis_client() -> aioredis.Redis:
-    """获取 Redis 客户端实例（带连接池）"""
-    global redis_pool
+def _get_redis_client() -> aioredis.Redis | None:
+    """
+    获取 Redis 客户端实例（带连接池）
+
+    fail-open 策略：Redis 连接失败时返回 None，不影响核心功能。
+    首次连接时如果密码认证失败，自动尝试无密码连接。
+    """
+    global redis_pool, _redis_available
+    if not _redis_available:
+        return None
     if redis_pool is None:
-        redis_pool = aioredis.from_url(
-            settings.redis_url,
-            max_connections=50,
-            decode_responses=True,
-            socket_connect_timeout=1,
-            socket_timeout=1,
-            retry_on_timeout=False,
-            health_check_interval=30,
-        )
+        try:
+            redis_pool = aioredis.from_url(
+                settings.redis_url,
+                max_connections=50,
+                decode_responses=True,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+                retry_on_timeout=False,
+                health_check_interval=30,
+            )
+        except Exception as e:
+            logger.warning(f"Redis client creation failed: {e} - Redis disabled (fail-open)")
+            _redis_available = False
+            return None
     return redis_pool
 
 
-async def get_redis() -> aioredis.Redis:
-    """获取 Redis 连接"""
-    return _get_redis_client()
+async def _test_and_fix_redis_auth() -> None:
+    """
+    测试 Redis 连接，如果密码认证失败则尝试无密码连接。
+
+    解决 "Client sent AUTH, but no password is set" 问题：
+    当 .env 中配置了 REDIS_PASSWORD 但 Redis 服务端未设密码时，
+    自动回退到无密码连接。
+    """
+    global redis_pool, _redis_available
+
+    if redis_pool is None:
+        return
+
+    try:
+        await redis_pool.ping()
+        logger.info("Redis connected successfully (with configured password)")
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "no password" in error_msg or "auth" in error_msg or "noauth" in error_msg:
+            logger.warning(
+                f"Redis AUTH failed ({e}), retrying without password..."
+            )
+            # 关闭旧连接池
+            try:
+                await redis_pool.close()
+            except Exception:
+                pass
+            redis_pool = None
+
+            # 尝试无密码连接
+            no_pwd_url = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+            try:
+                redis_pool = aioredis.from_url(
+                    no_pwd_url,
+                    max_connections=50,
+                    decode_responses=True,
+                    socket_connect_timeout=2,
+                    socket_timeout=2,
+                    retry_on_timeout=False,
+                    health_check_interval=30,
+                )
+                await redis_pool.ping()
+                logger.info("Redis connected successfully (no password)")
+            except Exception as e2:
+                logger.warning(f"Redis no-password connection also failed: {e2}")
+                try:
+                    await redis_pool.close()
+                except Exception:
+                    pass
+                redis_pool = None
+                _redis_available = False
+        else:
+            logger.warning(f"Redis ping failed: {e} - Redis disabled (fail-open)")
+            try:
+                await redis_pool.close()
+            except Exception:
+                pass
+            redis_pool = None
+            _redis_available = False
+
+
+async def get_redis() -> aioredis.Redis | None:
+    """
+    获取 Redis 连接
+
+    Returns:
+        Redis 客户端实例，如果 Redis 不可用则返回 None（fail-open）
+    """
+    client = _get_redis_client()
+    return client
 
 
 # ==================== Redis 会话管理 ====================
 
 class RedisSessionManager:
-    """Redis 会话管理器"""
+    """
+    Redis 会话管理器
+
+    所有方法采用 fail-open 策略：Redis 不可用时静默跳过，不影响核心功能。
+    """
 
     def __init__(self):
         self._client: aioredis.Redis | None = None
 
-    async def get_client(self) -> aioredis.Redis:
-        """获取 Redis 客户端"""
+    async def get_client(self) -> aioredis.Redis | None:
+        """获取 Redis 客户端（可能返回 None）"""
         if self._client is None:
             self._client = _get_redis_client()
         return self._client
@@ -140,19 +224,35 @@ class RedisSessionManager:
         user_id: int,
         ttl: int = 3600,
     ) -> None:
-        """设置用户会话"""
+        """设置用户会话（Redis 不可用时静默跳过）"""
         client = await self.get_client()
-        await client.setex(f"session:{session_id}", ttl, str(user_id))
+        if client is None:
+            return
+        try:
+            await client.setex(f"session:{session_id}", ttl, str(user_id))
+        except Exception as e:
+            logger.debug(f"Redis set_session failed: {e}")
 
     async def get_session(self, session_id: str) -> str | None:
-        """获取用户会话"""
+        """获取用户会话（Redis 不可用时返回 None）"""
         client = await self.get_client()
-        return await client.get(f"session:{session_id}")
+        if client is None:
+            return None
+        try:
+            return await client.get(f"session:{session_id}")
+        except Exception as e:
+            logger.debug(f"Redis get_session failed: {e}")
+            return None
 
     async def delete_session(self, session_id: str) -> None:
-        """删除用户会话"""
+        """删除用户会话（Redis 不可用时静默跳过）"""
         client = await self.get_client()
-        await client.delete(f"session:{session_id}")
+        if client is None:
+            return
+        try:
+            await client.delete(f"session:{session_id}")
+        except Exception as e:
+            logger.debug(f"Redis delete_session failed: {e}")
 
     async def set_cache(
         self,
@@ -160,27 +260,49 @@ class RedisSessionManager:
         value: str,
         ttl: int = 300,
     ) -> None:
-        """设置缓存"""
+        """设置缓存（Redis 不可用时静默跳过）"""
         client = await self.get_client()
-        await client.setex(key, ttl, value)
+        if client is None:
+            return
+        try:
+            await client.setex(key, ttl, value)
+        except Exception as e:
+            logger.debug(f"Redis set_cache failed: {e}")
 
     async def get_cache(self, key: str) -> str | None:
-        """获取缓存"""
+        """获取缓存（Redis 不可用时返回 None）"""
         client = await self.get_client()
-        return await client.get(key)
+        if client is None:
+            return None
+        try:
+            return await client.get(key)
+        except Exception as e:
+            logger.debug(f"Redis get_cache failed: {e}")
+            return None
 
     async def delete_cache(self, key: str) -> None:
-        """删除缓存"""
+        """删除缓存（Redis 不可用时静默跳过）"""
         client = await self.get_client()
-        await client.delete(key)
+        if client is None:
+            return
+        try:
+            await client.delete(key)
+        except Exception as e:
+            logger.debug(f"Redis delete_cache failed: {e}")
 
     async def increment_counter(self, key: str, ttl: int = 3600) -> int:
-        """递增计数器"""
+        """递增计数器（Redis 不可用时返回 0）"""
         client = await self.get_client()
-        count = await client.incr(key)
-        if count == 1:
-            await client.expire(key, ttl)
-        return count
+        if client is None:
+            return 0
+        try:
+            count = await client.incr(key)
+            if count == 1:
+                await client.expire(key, ttl)
+            return count
+        except Exception as e:
+            logger.debug(f"Redis increment_counter failed: {e}")
+            return 0
 
 
 # 全局 Redis 会话管理器
@@ -215,13 +337,15 @@ async def init_db():
     else:
         logger.info("MongoDB skipped (motor not installed)")
 
-    # Redis
+    # Redis（fail-open：连接失败不影响启动）
     try:
         r = _get_redis_client()
-        await r.ping()
-        logger.info("Redis connected successfully")
+        if r is not None:
+            await _test_and_fix_redis_auth()
+        else:
+            logger.warning("Redis client creation failed, running without Redis (fail-open)")
     except Exception as e:
-        logger.warning(f"Redis connection failed: {e}")
+        logger.warning(f"Redis connection failed: {e} - running without Redis (fail-open)")
 
 
 async def close_db():
@@ -237,5 +361,8 @@ async def close_db():
 
     # Redis
     if redis_pool is not None:
-        await redis_pool.close()
+        try:
+            await redis_pool.close()
+        except Exception:
+            pass
         logger.info("Redis connection closed")

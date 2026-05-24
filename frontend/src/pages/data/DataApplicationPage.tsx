@@ -18,7 +18,7 @@ import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
-import { PageSection, StatGrid, StatCard } from '@/components/common';
+import { PageContainer, PageSection, StatGrid, StatCard } from '@/components/common';
 
 /** 申请状态选项 */
 const STATUS_OPTIONS = [
@@ -171,11 +171,12 @@ const DataApplicationPage: React.FC = () => {
 
   const applications: DataApplication[] = applicationsData?.data?.items ?? [];
   const totalCount: number = applicationsData?.data?.total ?? 0;
-  const stats: ApplicationStats = statsData?.data ?? {
-    total_applications: 0,
-    pending_count: 0,
-    approved_count: 0,
-    rejected_count: 0,
+  const rawStats = statsData?.data ?? {};
+  const stats = {
+    total_applications: rawStats.total ?? rawStats.total_applications ?? 0,
+    pending_count: rawStats.pending ?? rawStats.pending_count ?? 0,
+    approved_count: rawStats.approved ?? rawStats.approved_count ?? 0,
+    rejected_count: rawStats.rejected ?? rawStats.rejected_count ?? 0,
   };
 
   // ===== 更新图表数据 =====
@@ -270,7 +271,7 @@ const DataApplicationPage: React.FC = () => {
   }, [selectedApplication, rejectReason, rejectComment, rejectMut]);
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="服务申请审批"
         subtitle="管理数据资产使用申请和审批流程"
@@ -596,7 +597,7 @@ const DataApplicationPage: React.FC = () => {
           </div>
         </div>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

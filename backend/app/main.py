@@ -21,8 +21,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.database import init_db, close_db
-from app.middleware import SecurityHeadersMiddleware, RateLimitMiddleware, AuditLogMiddleware, CSRFMiddleware, SQLInjectionGuardMiddleware
-from app.exceptions import AppException, app_exception_handler
+from app.middleware import SecurityHeadersMiddleware, RateLimitMiddleware, AuditLogMiddleware, CSRFMiddleware, SQLInjectionGuardMiddleware, XSSFilterMiddleware
+from app.exceptions import AppException, app_exception_handler, unhandled_exception_handler
 
 
 @asynccontextmanager
@@ -143,9 +143,13 @@ app.add_middleware(BaseHTTPMiddleware, dispatch=AuditLogMiddleware())
 # SQL 注入防护
 app.add_middleware(BaseHTTPMiddleware, dispatch=SQLInjectionGuardMiddleware())
 
+# XSS 内容过滤
+app.add_middleware(BaseHTTPMiddleware, dispatch=XSSFilterMiddleware())
+
 # ==================== 异常处理 ====================
 
 app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # ==================== 路由聚合 ====================
 from app.api.v1.router import router as v1_router

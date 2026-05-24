@@ -14,6 +14,7 @@ import {
   routePrivacyTask, listPrivacyTechnologies, listPrivacyScenarios, getPrivacyEngineStatus
 } from '@/api/compute';
 import type { PrivacyRouteResult, PrivacyTechnology, PrivacyScenario } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -45,21 +46,40 @@ const PrivacyComputePage: React.FC = () => {
   const [dataSensitivity, setDataSensitivity] = useState('high');
   const [participants, setParticipants] = useState(2);
 
+  // 功能可用性状态
+  const [featureUnavailable, setFeatureUnavailable] = useState(false);
+
   // ===== 数据查询 =====
-  const { data: technologiesData, isLoading: techLoading } = useQuery({
+  const { data: technologiesData, isLoading: techLoading, isError: techError, error: techErr } = useQuery({
     queryKey: ['privacy-technologies'],
     queryFn: () => listPrivacyTechnologies(),
+    retry: false,
   });
 
-  const { data: scenariosData, isLoading: scenariosLoading } = useQuery({
+  const { data: scenariosData, isLoading: scenariosLoading, isError: scenariosError, error: scenariosErr } = useQuery({
     queryKey: ['privacy-scenarios'],
     queryFn: () => listPrivacyScenarios(),
+    retry: false,
   });
 
-  const { data: engineStatusData, isLoading: engineLoading, refetch: refetchEngineStatus } = useQuery({
+  const { data: engineStatusData, isLoading: engineLoading, refetch: refetchEngineStatus, isError: engineError, error: engineErr } = useQuery({
     queryKey: ['privacy-engine-status'],
     queryFn: () => getPrivacyEngineStatus(),
+    retry: false,
   });
+
+  // 检测 404 错误（功能未实现）
+  React.useEffect(() => {
+    const errors = [techErr, scenariosErr, engineErr];
+    const has404 = errors.some((err) => {
+      if (!err) return false;
+      const msg = err instanceof Error ? err.message : String(err);
+      return msg.includes('资源不存在') || msg.includes('404') || msg.includes('Not Found');
+    });
+    if (has404) {
+      setFeatureUnavailable(true);
+    }
+  }, [techErr, scenariosErr, engineErr]);
 
   // ===== 路由推荐 =====
   const routeMutation = useMutation({
@@ -165,8 +185,26 @@ const PrivacyComputePage: React.FC = () => {
 
   const isLoading = techLoading || scenariosLoading || engineLoading;
 
+  // 功能未实现时显示提示
+  if (featureUnavailable) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title="隐私计算路由"
+          subtitle="基于场景自动推荐最佳隐私计算技术方案"
+          breadcrumbs={breadcrumbs}
+        />
+        <div className="flex flex-col items-center justify-center py-20">
+          <InfoCircleIcon style={{ fontSize: '4rem' }} className="text-gray-300 mb-4" />
+          <h3 className="text-lg text-gray-500 mb-2">功能开发中</h3>
+          <p className="text-sm text-gray-400">隐私计算路由功能正在开发中，敬请期待。</p>
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="隐私计算路由"
         subtitle="基于场景自动推荐最佳隐私计算技术方案"
@@ -395,7 +433,7 @@ const PrivacyComputePage: React.FC = () => {
       </div>
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

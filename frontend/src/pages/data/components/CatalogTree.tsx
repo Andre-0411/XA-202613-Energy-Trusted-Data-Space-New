@@ -68,39 +68,48 @@ const TreeNode: React.FC<{
   );
 };
 
-/** 预置分类树 */
+/** 预置分类树 - 匹配后端六大分类 */
 export const CATEGORY_TREE: CategoryNode[] = [
   {
-    id: 'energy',
-    label: '能源数据',
+    id: 'generation',
+    label: '发电数据',
     children: [
-      { id: 'electricity', label: '电力数据', children: [] },
-      { id: 'gas', label: '燃气数据', children: [] },
-      { id: 'renewable', label: '新能源数据', children: [] },
+      { id: '发电', label: '发电数据', children: [] },
     ],
   },
   {
-    id: 'financial',
-    label: '金融数据',
+    id: 'consumption',
+    label: '用电数据',
     children: [
-      { id: 'billing', label: '结算数据', children: [] },
-      { id: 'trading', label: '交易数据', children: [] },
+      { id: '用电', label: '用电数据', children: [] },
     ],
   },
   {
-    id: 'personal',
-    label: '个人信息',
+    id: 'dispatch',
+    label: '调度数据',
     children: [
-      { id: 'identity', label: '身份信息', children: [] },
-      { id: 'consumption', label: '消费数据', children: [] },
+      { id: '调度', label: '调度数据', children: [] },
     ],
   },
   {
-    id: 'operational',
-    label: '运营数据',
+    id: 'market',
+    label: '市场数据',
     children: [
-      { id: 'equipment', label: '设备数据', children: [] },
-      { id: 'maintenance', label: '维护数据', children: [] },
+      { id: '市场', label: '市场数据', children: [] },
+    ],
+  },
+  {
+    id: 'device',
+    label: '设备状态数据',
+    children: [
+      { id: '设备状态', label: '设备状态数据', children: [] },
+    ],
+  },
+  {
+    id: 'geo',
+    label: '地理信息数据',
+    children: [
+      { id: '地理信息', label: '地理信息数据', children: [] },
     ],
   },
 ];

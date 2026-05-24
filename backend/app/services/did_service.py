@@ -2,13 +2,19 @@
 DID 身份服务
 创建DID(did:tds:{method-specific-id}) + 解析DID Document + 更新DID Document + 停用DID + DID列表查询
 
-DID 格式: did:tds:{method-specific-id}
-- method-specific-id: SM3 哈希的前 16 位十六进制
-- 示例: did:tds:a1b2c3d4e5f6a7b8
+支持的 DID 方法：
+- did:tds — 能源可信数据空间自定义方法
+  - method-specific-id: SM3 哈希的前 16 位十六进制
+  - 示例: did:tds:a1b2c3d4e5f6a7b8
+
+- did:fisco — FISCO BCOS 区块链方法 (W3C DID v1.0 规范)
+  - method-specific-id: FISCO BCOS 账户地址（40位十六进制）
+  - 示例: did:fisco:0x1234567890abcdef1234567890abcdef12345678
 """
 import uuid
 import logging
 import hashlib
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -22,8 +28,12 @@ from app.core.gmssl_adapter import gmssl_adapter
 
 logger = logging.getLogger(__name__)
 
-DID_METHOD_PREFIX = "did:tds"
+DID_METHOD_PREFIX_TDS = "did:tds"
+DID_METHOD_PREFIX_FISCO = "did:fisco"
 DID_CONTEXT = "https://www.w3.org/ns/did/v1"
+
+# FISCO BCOS 地址格式: 0x + 40位十六进制
+FISCO_ADDRESS_PATTERN = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
 async def _register_did_on_chain(did: str, public_key: str) -> bool:
@@ -49,7 +59,7 @@ async def _register_did_on_chain(did: str, public_key: str) -> bool:
 
 def _generate_method_specific_id(public_key: str) -> str:
     """
-    根据 SM2 公钥生成 DID method-specific-id
+    根据 SM2 公钥生成 DID method-specific-id (did:tds 方法)
 
     对公钥做 SM3 哈希后取前 16 位十六进制作为 method-specific-id
 
@@ -61,6 +71,90 @@ def _generate_method_specific_id(public_key: str) -> str:
     """
     pk_hash = gmssl_adapter.sm3_hash(public_key)
     return pk_hash[:16]
+
+
+def _generate_fisco_method_id(public_key: str) -> str:
+    """
+    根据 SM2 公钥生成 did:fisco 方法的 method-specific-id
+
+    使用 SM3 哈希公钥后取后 20 字节（40位十六进制），
+    以太坊/ FISCO BCOS 地址格式: 0x + 40位十六进制
+
+    Args:
+        public_key: SM2 公钥（十六进制）
+
+    Returns:
+        FISCO BCOS 地址格式的 method-specific-id
+    """
+    pk_hash = gmssl_adapter.sm3_hash(public_key)
+    # 取哈希的后 20 字节（40 位十六进制）作为地址
+    address = "0x" + pk_hash[-40:]
+    return address
+
+
+def _build_did_fisco_document(
+    did: str,
+    public_key: str,
+    controller: Optional[str] = None,
+    fisco_address: Optional[str] = None,
+    chain_id: Optional[str] = None,
+    node_url: Optional[str] = None,
+    service_endpoints: Optional[list[dict]] = None,
+) -> dict:
+    """
+    构建 did:fisco 方法的 W3C DID Document
+
+    符合 W3C DID v1.0 规范，包含 FISCO BCOS 区块链特定的 service 端点
+
+    Args:
+        did: DID 标识符 (did:fisco:0x...)
+        public_key: SM2 公钥
+        controller: 控制者 DID
+        fisco_address: FISCO BCOS 账户地址
+        chain_id: FISCO BCOS 链 ID
+        node_url: FISCO BCOS 节点 URL
+        service_endpoints: 自定义服务端点
+
+    Returns:
+        DID Document 字典
+    """
+    key_id = f"{did}#keys-1"
+    address = fisco_address or did.split(":")[-1]
+
+    document = {
+        "@context": [
+            DID_CONTEXT,
+            "https://w3id.org/security/suites/sm2-2021/v1",
+            "https://w3id.org/security/suites/blockchain-2021/v1",
+        ],
+        "id": did,
+        "controller": controller or did,
+        "verificationMethod": [
+            {
+                "id": key_id,
+                "type": "SM2VerificationKey2021",
+                "controller": controller or did,
+                "publicKeyHex": public_key,
+                "blockchainAccountId": f"eip155:{chain_id or '1'}:{address}",
+            }
+        ],
+        "authentication": [key_id],
+        "assertionMethod": [key_id],
+        "service": service_endpoints or [
+            {
+                "id": f"{did}#fisco-node",
+                "type": "FISCOBCOSNode",
+                "serviceEndpoint": node_url or "http://localhost:8545",
+            },
+            {
+                "id": f"{did}#energy-data-service",
+                "type": "EnergyDataService",
+                "serviceEndpoint": "https://energy-dataspace.example.com/api/v1",
+            },
+        ],
+    }
+
+    return document
 
 
 def _build_did_document(
@@ -140,7 +234,7 @@ async def create_did(
     """
     # 生成 method-specific-id（SM3 哈希前 16 位）
     method_specific_id = _generate_method_specific_id(request.public_key)
-    did = f"{DID_METHOD_PREFIX}:{method_specific_id}"
+    did = f"{DID_METHOD_PREFIX_TDS}:{method_specific_id}"
 
     # 检查 DID 唯一性
     existing = await db.execute(
@@ -172,6 +266,71 @@ async def create_did(
 
     # 链上注册 (非阻塞)
     await _register_did_on_chain(did, request.public_key)
+
+    return DidResponse.model_validate(did_doc)
+
+
+async def create_fisco_did(
+    db: AsyncSession,
+    public_key: str,
+    controller: Optional[str] = None,
+    chain_id: Optional[str] = None,
+    node_url: Optional[str] = None,
+    user_id: str = "",
+) -> DidResponse:
+    """
+    创建 did:fisco 方法的 DID
+
+    符合 W3C DID v1.0 规范，使用 FISCO BCOS 区块链地址作为标识
+
+    Args:
+        db: 数据库会话
+        public_key: SM2 公钥（十六进制）
+        controller: 控制者 DID
+        chain_id: FISCO BCOS 链 ID
+        node_url: FISCO BCOS 节点 URL
+        user_id: 创建人 ID
+
+    Returns:
+        DID 响应
+    """
+    # 生成 FISCO BCOS 地址
+    fisco_address = _generate_fisco_method_id(public_key)
+    did = f"{DID_METHOD_PREFIX_FISCO}:{fisco_address}"
+
+    # 检查 DID 唯一性
+    existing = await db.execute(
+        select(DidDocument).where(DidDocument.did == did)
+    )
+    if existing.scalar_one_or_none():
+        raise DataAlreadyExistsError(message=f"DID 已存在: {did}")
+
+    # 构建 DID Document
+    document = _build_did_fisco_document(
+        did=did,
+        public_key=public_key,
+        controller=controller,
+        fisco_address=fisco_address,
+        chain_id=chain_id,
+        node_url=node_url,
+    )
+
+    # 存储 DID Document
+    did_doc = DidDocument(
+        did=did,
+        method="fisco",
+        document=document,
+        controller=controller or did,
+        status="active",
+    )
+    db.add(did_doc)
+    await db.commit()
+    await db.refresh(did_doc)
+
+    logger.info(f"did:fisco 创建成功: {did}, 创建人: {user_id}")
+
+    # 链上注册 (非阻塞)
+    await _register_did_on_chain(did, public_key)
 
     return DidResponse.model_validate(did_doc)
 

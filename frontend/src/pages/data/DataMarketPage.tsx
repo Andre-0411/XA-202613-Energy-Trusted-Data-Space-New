@@ -16,7 +16,7 @@ import {
 } from '@/api/data';
 import type { DataCatalogItem } from '@/types/api';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
-import { PageSection, StatGrid, StatCard } from '@/components/common';
+import { PageContainer, PageSection, StatGrid, StatCard } from '@/components/common';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
@@ -280,7 +280,7 @@ const DataMarketPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="数据服务市场"
         subtitle="浏览和申请使用能源数据资产"
@@ -581,7 +581,7 @@ const DataMarketPage: React.FC = () => {
           </div>
         </div>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

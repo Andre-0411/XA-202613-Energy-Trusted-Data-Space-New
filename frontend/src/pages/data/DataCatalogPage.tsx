@@ -21,6 +21,7 @@ import {
 } from '@/api/dataCatalog';
 import type { SearchFacets, SearchSuggestion } from '@/api/dataCatalog';
 import type { DataCatalogItem } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import { PageSection, StatGrid, StatCard } from '@/components/common';
@@ -248,7 +249,7 @@ const DataCatalogPage: React.FC = () => {
   const activeFilterCount = (filterLevel ? 1 : 0) + (filterOrg ? 1 : 0) + filterTags.length;
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="数据目录"
         subtitle="浏览和检索数据目录，申请访问和提交反馈"
@@ -356,7 +357,7 @@ const DataCatalogPage: React.FC = () => {
       />
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

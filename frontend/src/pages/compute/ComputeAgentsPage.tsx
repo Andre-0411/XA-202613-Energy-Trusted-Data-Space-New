@@ -15,11 +15,13 @@ import {
   queryAgent, tradeAgent, securityAgent, dispatchAgent, getAgentHistory,
   queryAgentStream, tradeAgentStream, securityAgentStream, dispatchAgentStream,
 } from '@/api/compute';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import type { ApiResponse } from '@/types/api';
 import LoadingOverlay from '@/components/LoadingOverlay';
-import ReactECharts from 'echarts-for-react';
+import ChartCard from '@/components/common/ChartCard';
+import StatCard from '@/components/common/StatCard';
 
 /** Agent 类型定义 */
 interface AgentDef {
@@ -246,7 +248,7 @@ const ComputeAgentsPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <style>{`@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
       <PageHeader
         title="计算代理"
@@ -261,31 +263,16 @@ const ComputeAgentsPage: React.FC = () => {
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { icon: <Screen4KIcon size="28px" />, value: stats.totalQueries, label: '总查询数', color: '#667eea' },
-          { icon: <CheckCircleFilledIcon size="28px" />, value: stats.activeAgents, label: '活跃代理', color: '#43e97b' },
-          { icon: <TrendingUpIcon size="28px" />, value: `${stats.successRate}%`, label: '成功率', color: '#4facfe' },
-          { icon: <TimeFilledIcon size="28px" />, value: stats.todayQueries, label: '今日查询', color: '#fa709a' },
-        ].map((card) => (
-          <div key={card.label} className="rounded-xl text-white p-4 shadow-sm" style={{ background: `linear-gradient(135deg, ${card.color} 0%, ${card.color}88 100%)` }}>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white/20">{card.icon}</div>
-              <div><p className="text-2xl font-bold">{card.value}</p><p className="text-sm opacity-80">{card.label}</p></div>
-            </div>
-          </div>
-        ))}
+        <StatCard title="总查询数" value={stats.totalQueries} unit="次" icon={<Screen4KIcon size="20px" />} gradient="purple" />
+        <StatCard title="活跃代理" value={stats.activeAgents} unit="个" icon={<CheckCircleFilledIcon size="20px" />} gradient="green" />
+        <StatCard title="成功率" value={stats.successRate} unit="%" icon={<TrendingUpIcon size="20px" />} gradient="cyan" />
+        <StatCard title="今日查询" value={stats.todayQueries} unit="次" icon={<TimeFilledIcon size="20px" />} gradient="orange" />
       </div>
 
       {/* ECharts 图表 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl bg-white border border-gray-200 p-4">
-          <h3 className="text-base font-semibold text-gray-800 mb-2">代理使用趋势</h3>
-          <ReactECharts option={agentUsageOption} style={{ height: 300 }} />
-        </div>
-        <div className="rounded-xl bg-white border border-gray-200 p-4">
-          <h3 className="text-base font-semibold text-gray-800 mb-2">代理类型分布</h3>
-          <ReactECharts option={agentTypeOption} style={{ height: 300 }} />
-        </div>
+        <div className="lg:col-span-2"><ChartCard title="代理使用趋势" option={agentUsageOption} height={300} /></div>
+        <ChartCard title="代理类型分布" option={agentTypeOption} height={300} />
       </div>
 
       <div className="flex gap-4 flex-1 overflow-hidden">
@@ -411,7 +398,7 @@ const ComputeAgentsPage: React.FC = () => {
       </div>
 
       <LoadingOverlay open={isStreaming} message="AI 代理正在思考..." />
-    </div>
+    </PageContainer>
   );
 };
 

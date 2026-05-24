@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.common import ApiResponse, PaginatedResponse
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
-from app.utils.deps import get_current_user, get_pagination_params, PaginationParams
+from app.utils.deps import require_roles, get_pagination_params, PaginationParams
 from app.services import user_service
 
 router = APIRouter()
@@ -30,7 +30,7 @@ async def list_users(
     keyword: Optional[str] = Query(None, description="关键词搜索"),
     pagination: PaginationParams = Depends(get_pagination_params),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_roles("admin")),
 ):
     """用户列表"""
     result = await user_service.list_users(
@@ -48,7 +48,7 @@ async def list_users(
 async def create_user(
     request: UserCreate,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_roles("admin")),
 ):
     """创建用户"""
     result = await user_service.create_user(
@@ -63,7 +63,7 @@ async def create_user(
 async def get_user(
     user_id: str,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_roles("admin")),
 ):
     """用户详情"""
     result = await user_service.get_user(db=db, user_id=user_id)
@@ -75,7 +75,7 @@ async def update_user(
     user_id: str,
     request: UserUpdate,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_roles("admin")),
 ):
     """更新用户"""
     result = await user_service.update_user(
@@ -88,7 +88,7 @@ async def update_user(
 async def delete_user(
     user_id: str,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_roles("admin")),
 ):
     """删除用户（软删除）"""
     result = await user_service.delete_user(db=db, user_id=user_id)
@@ -99,7 +99,7 @@ async def delete_user(
 async def batch_import_users(
     file: UploadFile = File(..., description="Excel 文件"),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_roles("admin")),
 ):
     """批量 Excel 导入用户"""
     file_content = await file.read()
@@ -117,9 +117,9 @@ async def reset_password(
     user_id: str,
     request: ResetPasswordBody = None,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_roles("admin")),
 ):
-    """重置密码（新密码通过请求体传递，不通过 URL 参数）"""
+    """重置密码（仅管理员可操作，新密码通过请求体传递）"""
     new_password = request.new_password if request else None
     result = await user_service.reset_password(
         db=db,

@@ -20,7 +20,7 @@ import { getMetadataVersions, getClassificationRules } from '@/api/dataCatalog';
 import type { MetadataRecord } from '@/types/api';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
-import { PageSection, StatGrid, StatCard } from '@/components/common';
+import { PageContainer, PageSection, StatGrid, StatCard } from '@/components/common';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import MetadataEditor, { INITIAL_FORM, type MetadataFormData, STANDARD_OPTIONS } from './components/MetadataEditor';
@@ -299,7 +299,7 @@ const MetadataPage: React.FC = () => {
   const isMutPending = createMut.isPending || updateMut.isPending;
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="元数据管理"
         subtitle="管理数据资产的元数据定义、版本历史与血缘关系"
@@ -493,7 +493,7 @@ const MetadataPage: React.FC = () => {
       />
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

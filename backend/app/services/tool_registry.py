@@ -140,8 +140,17 @@ def _type_to_str(type_hint) -> str:
 
 # ==================== 工具生成 ====================
 
+def _sanitize_name(name: str) -> str:
+    """清理名称，将连字符替换为下划线（Python函数名不能含连字符）"""
+    return name.replace("-", "_")
+
+
 def _generate_tool_name(module: str, func_name: str, method: str) -> str:
     """生成工具名称: create_data_asset, update_contract 等"""
+    # 清理模块名中的连字符
+    module = _sanitize_name(module)
+    func_name = _sanitize_name(func_name)
+
     # 提取动词
     verb_map = {"POST": "create", "PUT": "update", "DELETE": "delete"}
     verb = verb_map.get(method, method.lower())
@@ -183,14 +192,17 @@ def _create_dynamic_tool(route_info: dict) -> Callable:
     tool_desc = _generate_tool_description(route_info)
     params = route_info["params"]
 
-    # 构建参数字符串
+    # 构建参数字符串 — 将所有非基础类型统一降级为 str，避免 exec namespace 中缺少类型引用
+    _SAFE_TYPES = {"str", "int", "float", "bool", "list", "dict", "any"}
     param_parts = []
     for p in params:
         if p.get("is_model"):
             # Pydantic 模型参数 → 转为 JSON 字符串
             param_parts.append(f'{p["name"]}: str = "{{}}"')
         else:
-            type_str = "str" if p["type"] in ("any", "str") else p["type"]
+            # 将未知/复杂类型注解降级为 str，避免 NameError
+            raw_type = p["type"].split("[")[0].split("|")[0].strip()  # 取主类型
+            type_str = raw_type if raw_type in _SAFE_TYPES else "str"
             if p["required"]:
                 param_parts.append(f'{p["name"]}: {type_str}')
             else:
@@ -204,15 +216,7 @@ async def {tool_name}({", ".join(param_parts)}) -> str:
     """{tool_desc}"""
     import json as _json
     from app.database import AsyncSessionLocal
-    import httpx
-    
-    # 从上下文获取用户信息
-    try:
-        import contextvars
-        user_ctx = contextvars.copy_context().get("_current_user_context", {{}})
-    except:
-        user_ctx = {{}}
-    
+
     # 构建请求数据
     request_data = {{}}
 '''
@@ -223,7 +227,7 @@ async def {tool_name}({", ".join(param_parts)}) -> str:
             func_code += f'''
     try:
         request_data["{p["name"]}"] = _json.loads({p["name"]})
-    except:
+    except Exception:
         request_data["{p["name"]}"] = {{}}
 '''
         else:
@@ -232,14 +236,14 @@ async def {tool_name}({", ".join(param_parts)}) -> str:
         request_data["{p["name"]}"] = {p["name"]}
 '''
 
-    # 添加 API 调用
+    # 添加 API 调用 — 清理模块名中的连字符
+    safe_module = _sanitize_name(route_info["module"])
     func_code += f'''
     # 调用内部服务
     try:
         async with AsyncSessionLocal() as session:
-            # 直接调用服务函数
-            from app.services import {route_info["module"]}_service
-            service_func = getattr({route_info["module"]}_service, "{route_info["func_name"]}", None)
+            from app.services import {safe_module}_service
+            service_func = getattr({safe_module}_service, "{route_info["func_name"]}", None)
             if service_func:
                 result = await service_func(db=session, **request_data)
                 return _json.dumps({{"success": True, "result": result}}, ensure_ascii=False, default=str)
@@ -249,10 +253,30 @@ async def {tool_name}({", ".join(param_parts)}) -> str:
         return _json.dumps({{"success": False, "error": str(e)}}, ensure_ascii=False)
 '''
 
-    # 执行代码创建函数（将 tool 装饰器传入 namespace）
+    # 执行代码创建函数 — 提供完整的 exec namespace 以避免 NameError
     from langchain_core.tools import tool as _tool_decorator
-    namespace = {"tool": _tool_decorator}
-    exec(func_code, namespace)
+    from typing import Optional, List, Dict, Any, Union
+    from fastapi import BackgroundTasks
+    namespace = {
+        "tool": _tool_decorator,
+        "Optional": Optional,
+        "List": List,
+        "Dict": Dict,
+        "Any": Any,
+        "Union": Union,
+        "BackgroundTasks": BackgroundTasks,
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
+        "list": list,
+        "dict": dict,
+    }
+    try:
+        exec(func_code, namespace)
+    except SyntaxError as e:
+        logger.error(f"Syntax error generating tool '{tool_name}': {e}\nCode:\n{func_code}")
+        raise
     return namespace[tool_name]
 
 

@@ -143,6 +143,29 @@ def _init_notification_channels():
             "timeout": 10,
         },
     }
+    _notification_channels["dingtalk"] = {
+        "channel_id": "dingtalk",
+        "name": "钉钉通知",
+        "type": "dingtalk",
+        "enabled": True,
+        "config": {
+            "webhook_url": "",
+            "secret": "",
+            "at_mobiles": [],
+            "at_all": False,
+        },
+    }
+    _notification_channels["wecom"] = {
+        "channel_id": "wecom",
+        "name": "企业微信通知",
+        "type": "wecom",
+        "enabled": True,
+        "config": {
+            "webhook_url": "",
+            "mentioned_list": [],
+            "mentioned_mobile_list": [],
+        },
+    }
 
 
 def _init_default_silence_rules():
@@ -420,6 +443,68 @@ async def list_notification_channels() -> List[dict]:
     return list(_notification_channels.values())
 
 
+async def update_notification_channel(channel_id: str, config: dict) -> Optional[dict]:
+    """
+    更新通知渠道配置
+
+    Args:
+        channel_id: 渠道 ID (email/sms/webhook/dingtalk/wecom)
+        config: 新配置
+
+    Returns:
+        更新后的渠道信息，不存在返回 None
+    """
+    channel = _notification_channels.get(channel_id)
+    if not channel:
+        return None
+
+    if config:
+        channel["config"].update(config)
+    _notification_channels[channel_id] = channel
+    logger.info(f"Notification channel updated: {channel_id}")
+    return channel
+
+
+async def test_notification_channel(channel_id: str) -> bool:
+    """
+    测试通知渠道
+
+    Args:
+        channel_id: 渠道 ID
+
+    Returns:
+        是否发送成功
+    """
+    channel = _notification_channels.get(channel_id)
+    if not channel:
+        return False
+
+    test_alert = {
+        "alert_id": "test_alert",
+        "title": "通知渠道测试",
+        "description": "这是一条测试告警消息，用于验证通知渠道配置是否正确。",
+        "severity": "info",
+        "source": "system_test",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    try:
+        if channel["type"] == "email":
+            await _send_email_alert(test_alert, channel["config"])
+        elif channel["type"] == "webhook":
+            await _send_webhook_alert(test_alert, channel["config"])
+        elif channel["type"] == "sms":
+            await _send_sms_alert(test_alert, channel["config"])
+        elif channel["type"] == "dingtalk":
+            await _send_dingtalk_alert(test_alert, channel["config"])
+        elif channel["type"] == "wecom":
+            await _send_wecom_alert(test_alert, channel["config"])
+        return True
+    except Exception as e:
+        logger.error(f"Test notification failed for {channel_id}: {e}")
+        return False
+
+
 # ==================== 告警升级机制 ====================
 
 async def _send_alert_notifications_with_escalation(alert: dict) -> None:
@@ -427,21 +512,21 @@ async def _send_alert_notifications_with_escalation(alert: dict) -> None:
     发送告警通知（带升级机制）
 
     升级策略：
-    - P1 (critical): 邮件 + 短信 + Webhook
-    - P2 (warning): 邮件 + Webhook
-    - P3 (info/low): 仅日志记录
+    - P1 (critical): 邮件 + 短信 + Webhook + 钉钉 + 企业微信
+    - P2 (warning): 邮件 + Webhook + 钉钉 + 企业微信
+    - P3 (info): 仅日志记录
     """
     severity = alert.get("severity", "warning")
 
-    # P1→邮件+短信+Webhook, P2→邮件+Webhook, P3→日志
+    # P1→邮件+短信+Webhook+钉钉+企业微信, P2→邮件+Webhook+钉钉+企业微信, P3→日志
     if severity == "critical":
-        channels = ["email", "sms", "webhook"]
+        channels = ["email", "sms", "webhook", "dingtalk", "wecom"]
         alert["escalation_level"] = 1
     elif severity == "warning":
-        channels = ["email", "webhook"]
+        channels = ["email", "webhook", "dingtalk", "wecom"]
         alert["escalation_level"] = 2
     else:
-        channels = []  # info/low: 仅日志
+        channels = []  # info: 仅日志
         alert["escalation_level"] = 3
         logger.info(f"Alert P3 (log only): {alert['alert_id']} - {alert['title']}")
         _alert_history.append({
@@ -464,6 +549,10 @@ async def _send_alert_notifications_with_escalation(alert: dict) -> None:
                 await _send_webhook_alert(alert, channel["config"])
             elif channel["type"] == "sms":
                 await _send_sms_alert(alert, channel["config"])
+            elif channel["type"] == "dingtalk":
+                await _send_dingtalk_alert(alert, channel["config"])
+            elif channel["type"] == "wecom":
+                await _send_wecom_alert(alert, channel["config"])
 
             _alert_history.append({
                 "alert_id": alert["alert_id"],
@@ -624,6 +713,145 @@ async def _send_sms_alert(alert: dict, config: dict) -> None:
     # 实际实现需对接阿里云 SMS SDK：
     # from aliyunsdkdysmsapi.request.v20170525 import SendSmsRequest
     # 此处记录日志表明已触发 SMS 通知
+
+
+async def _send_dingtalk_alert(alert: dict, config: dict) -> None:
+    """
+    通过钉钉机器人 Webhook 发送告警通知
+
+    Args:
+        alert: 告警数据
+        config: 钉钉配置 {webhook_url, secret, at_mobiles, at_all}
+    """
+    import hashlib
+    import hmac as hmac_mod
+    import base64
+    import time as time_mod
+    import urllib.parse
+
+    webhook_url = config.get("webhook_url", "")
+    secret = config.get("secret", "")
+    at_mobiles = config.get("at_mobiles", [])
+    at_all = config.get("at_all", False)
+
+    if not webhook_url:
+        logger.warning("DingTalk webhook URL not configured, skipping")
+        return
+
+    # 签名（如果配置了加签密钥）
+    url = webhook_url
+    if secret:
+        timestamp = str(round(time_mod.time() * 1000))
+        string_to_sign = f"{timestamp}\n{secret}"
+        hmac_code = hmac_mod.new(
+            secret.encode("utf-8"),
+            string_to_sign.encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).digest()
+        sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))
+        url = f"{webhook_url}&timestamp={timestamp}&sign={sign}"
+
+    severity_map = {"critical": "🔴 严重", "warning": "🟡 警告", "info": "🔵 提示"}
+    severity_text = severity_map.get(alert.get("severity", ""), "⚪ 未知")
+
+    payload = {
+        "msgtype": "markdown",
+        "markdown": {
+            "title": f"[告警] {alert['title']}",
+            "text": (
+                f"### {severity_text} 告警通知\n\n"
+                f"- **告警ID**: {alert['alert_id']}\n"
+                f"- **标题**: {alert['title']}\n"
+                f"- **描述**: {alert['description']}\n"
+                f"- **来源**: {alert['source']}\n"
+                f"- **指标**: {alert.get('metric_name', 'N/A')}\n"
+                f"- **当前值**: {alert.get('metric_value', 'N/A')}\n"
+                f"- **阈值**: {alert.get('threshold', 'N/A')}\n"
+                f"- **触发时间**: {alert['created_at']}\n"
+            ),
+        },
+        "at": {
+            "atMobiles": at_mobiles,
+            "isAtAll": at_all,
+        },
+    }
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(url, json=payload)
+            if response.status_code == 200:
+                resp_data = response.json()
+                if resp_data.get("errcode") == 0:
+                    logger.info(f"DingTalk alert sent successfully: {alert['alert_id']}")
+                else:
+                    logger.error(f"DingTalk alert failed: {resp_data}")
+            else:
+                logger.error(f"DingTalk alert HTTP error: {response.status_code}")
+    except ImportError:
+        logger.warning("httpx not installed, cannot send DingTalk alert")
+    except Exception as e:
+        logger.error(f"DingTalk alert error: {e}")
+        raise
+
+
+async def _send_wecom_alert(alert: dict, config: dict) -> None:
+    """
+    通过企业微信机器人 Webhook 发送告警通知
+
+    Args:
+        alert: 告警数据
+        config: 企业微信配置 {webhook_url, mentioned_list, mentioned_mobile_list}
+    """
+    webhook_url = config.get("webhook_url", "")
+    mentioned_list = config.get("mentioned_list", [])
+    mentioned_mobile_list = config.get("mentioned_mobile_list", [])
+
+    if not webhook_url:
+        logger.warning("WeCom webhook URL not configured, skipping")
+        return
+
+    severity_map = {"critical": "🔴 严重", "warning": "🟡 警告", "info": "🔵 提示"}
+    severity_text = severity_map.get(alert.get("severity", ""), "⚪ 未知")
+
+    payload = {
+        "msgtype": "markdown",
+        "markdown": {
+            "content": (
+                f"## {severity_text} 告警通知\n\n"
+                f"> **告警ID**: {alert['alert_id']}\n\n"
+                f"> **标题**: {alert['title']}\n\n"
+                f"> **描述**: {alert['description']}\n\n"
+                f"> **来源**: {alert['source']}\n\n"
+                f"> **指标**: {alert.get('metric_name', 'N/A')}\n\n"
+                f"> **当前值**: {alert.get('metric_value', 'N/A')}\n\n"
+                f"> **阈值**: {alert.get('threshold', 'N/A')}\n\n"
+                f"> **触发时间**: {alert['created_at']}\n\n"
+                f"<@{''.join(mentioned_list)}>"
+                if mentioned_list else ""
+            ),
+        },
+        "mentioned_list": mentioned_list,
+        "mentioned_mobile_list": mentioned_mobile_list,
+    }
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(webhook_url, json=payload)
+            if response.status_code == 200:
+                resp_data = response.json()
+                if resp_data.get("errcode") == 0:
+                    logger.info(f"WeCom alert sent successfully: {alert['alert_id']}")
+                else:
+                    logger.error(f"WeCom alert failed: {resp_data}")
+            else:
+                logger.error(f"WeCom alert HTTP error: {response.status_code}")
+    except ImportError:
+        logger.warning("httpx not installed, cannot send WeCom alert")
+    except Exception as e:
+        logger.error(f"WeCom alert error: {e}")
+        raise
 
 
 # ==================== 告警静默/抑制 ====================

@@ -8,15 +8,17 @@ import {
   AddIcon, PlayIcon, StopIcon, RefreshIcon, ViewModuleIcon,
   AssignmentIcon, PlayCircleIcon, CheckCircleIcon, TrendingUpIcon,
 } from 'tdesign-icons-react';
-import ReactECharts from 'echarts-for-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listTasks, startTask, stopTask, getTaskResult } from '@/api/compute';
 import type { ComputeTask } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import ChartCard from '@/components/common/ChartCard';
+import StatCard from '@/components/common/StatCard';
 import ResponsiveFilterBar from '@/components/responsive/ResponsiveFilterBar';
 
 /** 任务类型选项 */
@@ -201,7 +203,7 @@ const ComputeTasksPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="计算任务"
         subtitle="管理可信计算任务的创建、执行与监控"
@@ -218,54 +220,16 @@ const ComputeTasksPage: React.FC = () => {
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-xl p-3 sm:p-4 text-white" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-          <div className="flex items-center gap-2">
-            <AssignmentIcon style={{ fontSize: '1.75rem' }} />
-            <div>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold">{stats.totalTasks}</p>
-              <p className="text-xs sm:text-sm opacity-80">总任务数</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl p-3 sm:p-4 text-white" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-          <div className="flex items-center gap-2">
-            <PlayCircleIcon style={{ fontSize: '1.75rem' }} />
-            <div>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold">{stats.runningTasks}</p>
-              <p className="text-xs sm:text-sm opacity-80">运行中</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl p-3 sm:p-4 text-white" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
-          <div className="flex items-center gap-2">
-            <CheckCircleIcon style={{ fontSize: '1.75rem' }} />
-            <div>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold">{stats.completedTasks}</p>
-              <p className="text-xs sm:text-sm opacity-80">已完成</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl p-3 sm:p-4 text-white" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-          <div className="flex items-center gap-2">
-            <TrendingUpIcon style={{ fontSize: '1.75rem' }} />
-            <div>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold">{stats.todayTasks}</p>
-              <p className="text-xs sm:text-sm opacity-80">今日任务</p>
-            </div>
-          </div>
-        </div>
+        <StatCard title="总任务数" value={stats.totalTasks} unit="个" icon={<AssignmentIcon size="20px" />} gradient="purple" />
+        <StatCard title="运行中" value={stats.runningTasks} unit="个" icon={<PlayCircleIcon size="20px" />} gradient="red" />
+        <StatCard title="已完成" value={stats.completedTasks} unit="个" icon={<CheckCircleIcon size="20px" />} gradient="green" />
+        <StatCard title="今日任务" value={stats.todayTasks} unit="个" icon={<TrendingUpIcon size="20px" />} gradient="cyan" />
       </div>
 
       {/* ECharts 图表 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-        <div className="md:col-span-2 rounded-xl bg-white border border-gray-200 p-3 sm:p-4">
-          <h3 className="text-sm sm:text-base font-semibold mb-2">任务趋势分析</h3>
-          <ReactECharts option={trendChartOption} style={{ height: 300 }} />
-        </div>
-        <div className="rounded-xl bg-white border border-gray-200 p-3 sm:p-4">
-          <h3 className="text-sm sm:text-base font-semibold mb-2">任务类型分布</h3>
-          <ReactECharts option={typeChartOption} style={{ height: 300 }} />
-        </div>
+        <div className="md:col-span-2"><ChartCard title="任务趋势分析" option={trendChartOption} height={300} /></div>
+        <ChartCard title="任务类型分布" option={typeChartOption} height={300} />
       </div>
 
       {/* 搜索过滤栏 */}
@@ -458,7 +422,7 @@ const ComputeTasksPage: React.FC = () => {
       )}
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

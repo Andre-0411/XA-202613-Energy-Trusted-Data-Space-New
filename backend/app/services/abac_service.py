@@ -1264,3 +1264,305 @@ async def simulate_evaluation(
             else f"访问拒绝: {evaluation.deny_reason}"
         ),
     }
+
+
+# ==================== 动态授权 ====================
+
+# 临时授权存储
+_temp_authorizations: dict[str, dict] = {}
+
+# 条件授权存储
+_conditional_authorizations: dict[str, dict] = {}
+
+
+async def create_temporary_authorization(
+    subject_did: str,
+    resource_type: str,
+    resource_id: str,
+    action: str,
+    granted_by: str,
+    expires_in_seconds: int = 3600,
+    reason: str = "",
+) -> dict:
+    """
+    创建临时授权
+
+    临时授权在指定时间后自动过期，适用于：
+    - 临时数据访问授权
+    - 紧急运维操作授权
+    - 跨组织临时协作授权
+
+    Args:
+        subject_did: 被授权方 DID
+        resource_type: 资源类型
+        resource_id: 资源 ID
+        action: 授权操作
+        granted_by: 授权人
+        expires_in_seconds: 过期时间（秒），默认 1 小时
+        reason: 授权原因
+
+    Returns:
+        临时授权信息
+    """
+    import uuid as _uuid
+    auth_id = f"temp_auth_{_uuid.uuid4().hex[:8]}"
+    now = datetime.now(timezone.utc)
+
+    auth = {
+        "auth_id": auth_id,
+        "type": "temporary",
+        "subject_did": subject_did,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "action": action,
+        "granted_by": granted_by,
+        "reason": reason,
+        "status": "active",
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(seconds=expires_in_seconds)).isoformat(),
+        "expires_in_seconds": expires_in_seconds,
+    }
+
+    _temp_authorizations[auth_id] = auth
+    logger.info(
+        f"Temporary authorization created: {auth_id}, "
+        f"subject={subject_did}, resource={resource_type}/{resource_id}, "
+        f"expires_in={expires_in_seconds}s"
+    )
+    return auth
+
+
+async def check_temporary_authorization(
+    subject_did: str,
+    resource_type: str,
+    resource_id: str,
+    action: str,
+) -> bool:
+    """
+    检查临时授权是否有效
+
+    Args:
+        subject_did: 主体 DID
+        resource_type: 资源类型
+        resource_id: 资源 ID
+        action: 操作
+
+    Returns:
+        是否有有效的临时授权
+    """
+    now = datetime.now(timezone.utc)
+
+    for auth in _temp_authorizations.values():
+        if auth["status"] != "active":
+            continue
+        if auth["subject_did"] != subject_did:
+            continue
+        if auth["resource_type"] != resource_type:
+            continue
+        if auth["resource_id"] != resource_id and auth["resource_id"] != "*":
+            continue
+        if auth["action"] != action and auth["action"] != "*":
+            continue
+
+        # 检查是否过期
+        expires_at = datetime.fromisoformat(auth["expires_at"])
+        if now > expires_at:
+            auth["status"] = "expired"
+            continue
+
+        return True
+
+    return False
+
+
+async def revoke_temporary_authorization(auth_id: str) -> Optional[dict]:
+    """
+    撤销临时授权
+
+    Args:
+        auth_id: 授权 ID
+
+    Returns:
+        撤销后的授权信息，不存在返回 None
+    """
+    auth = _temp_authorizations.get(auth_id)
+    if not auth:
+        return None
+
+    auth["status"] = "revoked"
+    auth["revoked_at"] = datetime.now(timezone.utc).isoformat()
+    logger.info(f"Temporary authorization revoked: {auth_id}")
+    return auth
+
+
+async def list_temporary_authorizations(
+    subject_did: Optional[str] = None,
+    status: Optional[str] = None,
+) -> list[dict]:
+    """列出临时授权"""
+    auths = list(_temp_authorizations.values())
+    if subject_did:
+        auths = [a for a in auths if a.get("subject_did") == subject_did]
+    if status:
+        auths = [a for a in auths if a.get("status") == status]
+    return auths
+
+
+async def create_conditional_authorization(
+    subject_did: str,
+    resource_type: str,
+    resource_id: str,
+    action: str,
+    conditions: dict,
+    granted_by: str,
+    reason: str = "",
+) -> dict:
+    """
+    创建条件授权
+
+    条件授权在满足指定条件时才生效，支持的条件类型：
+    - time_range: 时间范围限制 {start, end}
+    - ip_whitelist: IP 白名单 {ips: [...]}
+    - max_access_count: 最大访问次数 {count: N}
+    - purpose: 使用目的限制 {purposes: [...]}
+    - data_freshness: 数据新鲜度要求 {max_age_hours: N}
+
+    Args:
+        subject_did: 被授权方 DID
+        resource_type: 资源类型
+        resource_id: 资源 ID
+        action: 授权操作
+        conditions: 授权条件
+        granted_by: 授权人
+        reason: 授权原因
+
+    Returns:
+        条件授权信息
+    """
+    import uuid as _uuid
+    auth_id = f"cond_auth_{_uuid.uuid4().hex[:8]}"
+    now = datetime.now(timezone.utc)
+
+    auth = {
+        "auth_id": auth_id,
+        "type": "conditional",
+        "subject_did": subject_did,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "action": action,
+        "conditions": conditions,
+        "granted_by": granted_by,
+        "reason": reason,
+        "status": "active",
+        "access_count": 0,
+        "created_at": now.isoformat(),
+    }
+
+    _conditional_authorizations[auth_id] = auth
+    logger.info(
+        f"Conditional authorization created: {auth_id}, "
+        f"subject={subject_did}, conditions={list(conditions.keys())}"
+    )
+    return auth
+
+
+async def check_conditional_authorization(
+    subject_did: str,
+    resource_type: str,
+    resource_id: str,
+    action: str,
+    context: Optional[dict] = None,
+) -> bool:
+    """
+    检查条件授权是否满足
+
+    Args:
+        subject_did: 主体 DID
+        resource_type: 资源类型
+        resource_id: 资源 ID
+        action: 操作
+        context: 上下文信息 {ip, timestamp, purpose, ...}
+
+    Returns:
+        条件是否满足
+    """
+    context = context or {}
+    now = datetime.now(timezone.utc)
+
+    for auth in _conditional_authorizations.values():
+        if auth["status"] != "active":
+            continue
+        if auth["subject_did"] != subject_did:
+            continue
+        if auth["resource_type"] != resource_type:
+            continue
+        if auth["resource_id"] != resource_id and auth["resource_id"] != "*":
+            continue
+        if auth["action"] != action and auth["action"] != "*":
+            continue
+
+        conditions = auth.get("conditions", {})
+
+        # 检查时间范围
+        if "time_range" in conditions:
+            tr = conditions["time_range"]
+            start = datetime.fromisoformat(tr["start"]) if tr.get("start") else None
+            end = datetime.fromisoformat(tr["end"]) if tr.get("end") else None
+            if start and now < start:
+                continue
+            if end and now > end:
+                auth["status"] = "expired"
+                continue
+
+        # 检查 IP 白名单
+        if "ip_whitelist" in conditions:
+            client_ip = context.get("ip", "")
+            allowed_ips = conditions["ip_whitelist"].get("ips", [])
+            if allowed_ips and client_ip not in allowed_ips:
+                continue
+
+        # 检查最大访问次数
+        if "max_access_count" in conditions:
+            max_count = conditions["max_access_count"].get("count", 0)
+            if auth.get("access_count", 0) >= max_count:
+                auth["status"] = "exhausted"
+                continue
+
+        # 检查使用目的
+        if "purpose" in conditions:
+            allowed_purposes = conditions["purpose"].get("purposes", [])
+            request_purpose = context.get("purpose", "")
+            if allowed_purposes and request_purpose not in allowed_purposes:
+                continue
+
+        # 所有条件满足，增加访问计数
+        auth["access_count"] = auth.get("access_count", 0) + 1
+        auth["last_accessed_at"] = now.isoformat()
+        return True
+
+    return False
+
+
+async def revoke_conditional_authorization(auth_id: str) -> Optional[dict]:
+    """撤销条件授权"""
+    auth = _conditional_authorizations.get(auth_id)
+    if not auth:
+        return None
+
+    auth["status"] = "revoked"
+    auth["revoked_at"] = datetime.now(timezone.utc).isoformat()
+    logger.info(f"Conditional authorization revoked: {auth_id}")
+    return auth
+
+
+async def list_conditional_authorizations(
+    subject_did: Optional[str] = None,
+    status: Optional[str] = None,
+) -> list[dict]:
+    """列出条件授权"""
+    auths = list(_conditional_authorizations.values())
+    if subject_did:
+        auths = [a for a in auths if a.get("subject_did") == subject_did]
+    if status:
+        auths = [a for a in auths if a.get("status") == status]
+    return auths

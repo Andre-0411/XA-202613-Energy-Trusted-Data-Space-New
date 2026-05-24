@@ -15,7 +15,7 @@ import { getQualityStatistics } from '@/api/dataCatalog';
 import type { QualityReport } from '@/types/api';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
-import { PageSection, StatGrid, StatCard } from '@/components/common';
+import { PageContainer, PageSection, StatGrid, StatCard } from '@/components/common';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
@@ -166,7 +166,7 @@ const DataQualityPage: React.FC = () => {
   }, [qualityData]);
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="数据质量"
         subtitle="数据质量检查、报告与趋势分析"
@@ -397,7 +397,7 @@ const DataQualityPage: React.FC = () => {
       </Dialog>
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

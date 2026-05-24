@@ -14,12 +14,14 @@ import {
   scanSandboxAlgorithm, exportSandboxAudit,
 } from '@/api/compute';
 import type { Sandbox } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingOverlay from '@/components/LoadingOverlay';
-import ReactECharts from 'echarts-for-react';
+import ChartCard from '@/components/common/ChartCard';
+import StatCard from '@/components/common/StatCard';
 
 /** 沙箱表单数据 */
 interface SandboxFormData {
@@ -202,7 +204,7 @@ const ComputeSandboxPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="计算沙箱"
         subtitle="在隔离的安全沙箱环境中执行不可信算法，支持安全扫描与审计导出"
@@ -219,54 +221,16 @@ const ComputeSandboxPage: React.FC = () => {
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-          <div className="flex items-center gap-2">
-            <DesktopIcon style={{ fontSize: 40 }} />
-            <div>
-              <p className="text-2xl font-bold">{stats.totalSandboxes}</p>
-              <p className="text-sm opacity-80">总沙箱数</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
-          <div className="flex items-center gap-2">
-            <PlayIcon style={{ fontSize: 40 }} />
-            <div>
-              <p className="text-2xl font-bold">{stats.running}</p>
-              <p className="text-sm opacity-80">运行中</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-          <div className="flex items-center gap-2">
-            <CheckCircleIcon style={{ fontSize: 40 }} />
-            <div>
-              <p className="text-2xl font-bold">{stats.completed}</p>
-              <p className="text-sm opacity-80">已完成</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
-          <div className="flex items-center gap-2">
-            <TrendingUpIcon style={{ fontSize: 40 }} />
-            <div>
-              <p className="text-2xl font-bold">{stats.todayTasks}</p>
-              <p className="text-sm opacity-80">今日任务</p>
-            </div>
-          </div>
-        </div>
+        <StatCard title="总沙箱数" value={stats.totalSandboxes} unit="个" icon={<DesktopIcon size="20px" />} gradient="purple" />
+        <StatCard title="运行中" value={stats.running} unit="个" icon={<PlayIcon size="20px" />} gradient="green" />
+        <StatCard title="已完成" value={stats.completed} unit="个" icon={<CheckCircleIcon size="20px" />} gradient="cyan" />
+        <StatCard title="今日任务" value={stats.todayTasks} unit="个" icon={<TrendingUpIcon size="20px" />} gradient="orange" />
       </div>
 
       {/* ECharts 图表 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 rounded-xl bg-white border border-gray-200 p-4">
-          <h3 className="text-base font-semibold mb-2">沙箱运行趋势</h3>
-          <ReactECharts option={sandboxTrendOption} style={{ height: 300 }} />
-        </div>
-        <div className="rounded-xl bg-white border border-gray-200 p-4">
-          <h3 className="text-base font-semibold mb-2">沙箱状态分布</h3>
-          <ReactECharts option={statusDistOption} style={{ height: 300 }} />
-        </div>
+        <div className="md:col-span-2"><ChartCard title="沙箱运行趋势" option={sandboxTrendOption} height={300} /></div>
+        <ChartCard title="沙箱状态分布" option={statusDistOption} height={300} />
       </div>
 
       {/* 沙箱卡片列表 */}
@@ -405,7 +369,7 @@ const ComputeSandboxPage: React.FC = () => {
       />
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

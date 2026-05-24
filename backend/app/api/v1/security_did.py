@@ -1,6 +1,7 @@
 """
 DID 身份 API - /api/v1/security/did
 创建DID + 解析DID Document + 更新DID Document + 停用DID
+支持 did:tds 和 did:fisco 两种方法
 """
 from typing import Optional
 
@@ -24,16 +25,47 @@ class DidUpdateRequest(BaseModel):
     remove_authentication: Optional[list[str]] = Field(default=None, description="移除的认证方法 ID")
 
 
+class FiscoDidCreateRequest(BaseModel):
+    """创建 did:fisco 请求"""
+    public_key: str = Field(description="SM2 公钥（十六进制）")
+    controller: Optional[str] = Field(default=None, description="控制者 DID")
+    chain_id: Optional[str] = Field(default=None, description="FISCO BCOS 链 ID")
+    node_url: Optional[str] = Field(default=None, description="FISCO BCOS 节点 URL")
+
+
 @router.post("/create", response_model=ApiResponse)
 async def create_did(
     request: DidCreate,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """创建DID（生成 did:fisco:{address} 格式，关联 SM2 公钥）"""
+    """创建DID（生成 did:tds:{hash} 格式，关联 SM2 公钥）"""
     result = await did_service.create_did(
         db=db,
         request=request,
+        user_id=user.get("user_id", ""),
+    )
+    return ApiResponse(data=result)
+
+
+@router.post("/create-fisco", response_model=ApiResponse)
+async def create_fisco_did(
+    request: FiscoDidCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    创建 did:fisco 方法的 DID
+
+    符合 W3C DID v1.0 规范，使用 FISCO BCOS 区块链地址作为标识
+    格式: did:fisco:0x{40位十六进制地址}
+    """
+    result = await did_service.create_fisco_did(
+        db=db,
+        public_key=request.public_key,
+        controller=request.controller,
+        chain_id=request.chain_id,
+        node_url=request.node_url,
         user_id=user.get("user_id", ""),
     )
     return ApiResponse(data=result)

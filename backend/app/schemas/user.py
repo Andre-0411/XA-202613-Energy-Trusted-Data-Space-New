@@ -30,7 +30,17 @@ class OrganizationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        # Handle metadata_ -> metadata mapping
+        if hasattr(obj, 'metadata_') and not hasattr(obj, 'metadata'):
+            obj.metadata = obj.metadata_
+        elif hasattr(obj, 'get'):
+            if 'metadata_' in obj and 'metadata' not in obj:
+                obj['metadata'] = obj.get('metadata_')
+        return super().model_validate(obj, **kwargs)
 
 
 class DepartmentCreate(BaseModel):

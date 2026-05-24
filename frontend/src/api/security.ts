@@ -41,6 +41,10 @@ export function createDid(data: { method?: string; public_key: string; controlle
   return request.post<any, ApiResponse<DidDocument>>('/security/did/create', data);
 }
 
+export function createFiscoDid(data: { public_key: string; controller?: string; chain_id?: string; node_url?: string }) {
+  return request.post<any, ApiResponse<DidDocument>>('/security/did/create-fisco', data);
+}
+
 export function resolveDid(did: string) {
   return request.get<any, ApiResponse<DidDocument>>(`/security/did/${did}`);
 }
@@ -51,6 +55,32 @@ export function updateDidDocument(did: string, data: { service_endpoints?: Recor
 
 export function deactivateDid(did: string) {
   return request.post<any, ApiResponse<{ did: string; status: string }>>(`/security/did/${did}/deactivate`);
+}
+
+// ==================== ABAC 动态授权 ====================
+
+export function createTemporaryAuth(data: { subject_did: string; resource_type: string; resource_id: string; action: string; expires_in_seconds?: number; reason?: string }) {
+  return request.post<any, ApiResponse<Record<string, unknown>>>('/security/abac/temp-auth', data);
+}
+
+export function listTemporaryAuths(params?: { subject_did?: string; status?: string }) {
+  return request.get<any, ApiResponse<Record<string, unknown>[]>>('/security/abac/temp-auth', { params });
+}
+
+export function revokeTemporaryAuth(authId: string) {
+  return request.delete<any, ApiResponse<null>>(`/security/abac/temp-auth/${authId}`);
+}
+
+export function createConditionalAuth(data: { subject_did: string; resource_type: string; resource_id: string; action: string; conditions: Record<string, unknown>; reason?: string }) {
+  return request.post<any, ApiResponse<Record<string, unknown>>>('/security/abac/cond-auth', data);
+}
+
+export function listConditionalAuths(params?: { subject_did?: string; status?: string }) {
+  return request.get<any, ApiResponse<Record<string, unknown>[]>>('/security/abac/cond-auth', { params });
+}
+
+export function revokeConditionalAuth(authId: string) {
+  return request.delete<any, ApiResponse<null>>(`/security/abac/cond-auth/${authId}`);
 }
 
 // ==================== VC ====================

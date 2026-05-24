@@ -10,22 +10,22 @@ import {
 import ReactECharts from 'echarts-for-react';
 import { StatGrid, StatCard, PageSection } from '@/components/common';
 
-/** 分类选项 */
+/** 分类选项 - 匹配后端六大分类 */
 const CATEGORY_OPTIONS = [
-  { value: 'electricity', label: '电力数据', icon: '⚡', color: '#f59e0b' },
-  { value: 'gas', label: '燃气数据', icon: '🔥', color: '#ef4444' },
-  { value: 'renewable', label: '新能源数据', icon: '🌱', color: '#22c55e' },
-  { value: 'market', label: '市场数据', icon: '📈', color: '#3b82f6' },
-  { value: 'device', label: '设备数据', icon: '🔧', color: '#8b5cf6' },
-  { value: 'geographic', label: '地理信息', icon: '🗺️', color: '#06b6d4' },
+  { value: '发电', label: '发电数据', icon: '⚡', color: '#f59e0b' },
+  { value: '用电', label: '用电数据', icon: '🔌', color: '#ef4444' },
+  { value: '调度', label: '调度数据', icon: '📋', color: '#8b5cf6' },
+  { value: '市场', label: '市场数据', icon: '📈', color: '#3b82f6' },
+  { value: '设备状态', label: '设备状态数据', icon: '🔧', color: '#22c55e' },
+  { value: '地理信息', label: '地理信息数据', icon: '🗺️', color: '#06b6d4' },
 ];
 
-/** 敏感级别选项 */
+/** 敏感级别选项 - 匹配后端四级安全等级 */
 const SENSITIVITY_OPTIONS = [
-  { value: 'public', label: '公开', color: '#22c55e' },
-  { value: 'internal', label: '内部', color: '#3b82f6' },
-  { value: 'confidential', label: '机密', color: '#f59e0b' },
-  { value: 'secret', label: '绝密', color: '#ef4444' },
+  { value: '1', label: '核心（一级）', color: '#ef4444' },
+  { value: '2', label: '重要（二级）', color: '#f59e0b' },
+  { value: '3', label: '一般（三级）', color: '#3b82f6' },
+  { value: '4', label: '公开（四级）', color: '#22c55e' },
 ];
 
 interface AssetStatsProps {

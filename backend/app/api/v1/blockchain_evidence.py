@@ -16,12 +16,13 @@ from app.models.blockchain import EvidenceRecord
 from app.schemas.common import ApiResponse, PaginatedResponse
 from app.schemas.blockchain import (
     EvidenceCreate, EvidenceResponse, EvidenceBatchSubmit,
-    EvidenceBatchResult, TimestampResponse,
+    EvidenceBatchResult, TimestampResponse, ChainVerificationResponse,
 )
 from app.utils.deps import get_current_user
 from app.services.blockchain_evidence_service import (
     submit_evidence, get_evidence, get_evidence_chain, verify_evidence,
     batch_submit_evidence, get_timestamp_service, export_evidence_pdf,
+    verify_evidence_chain_hash,
 )
 from app.exceptions import EvidenceError, DataNotFoundError
 
@@ -321,3 +322,18 @@ async def verify_evidence_chain(
     except Exception as e:
         logger.error(f"Evidence chain verification failed: {e}")
         return ApiResponse(code=4020, message=f"证据链验证失败: {e}", data=None)
+
+
+@router.post("/chain/{resource_id}/verify-hash", response_model=ApiResponse[ChainVerificationResponse])
+async def verify_chain_hash(
+    resource_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """验证资源证据链的链式哈希完整性（prev_hash → chain_hash 链）"""
+    try:
+        result = await verify_evidence_chain_hash(db=db, resource_id=resource_id)
+        return ApiResponse(data=ChainVerificationResponse(**result))
+    except Exception as e:
+        logger.error(f"Chain hash verification failed: {e}")
+        return ApiResponse(code=4020, message=f"链式哈希验证失败: {e}", data=None)

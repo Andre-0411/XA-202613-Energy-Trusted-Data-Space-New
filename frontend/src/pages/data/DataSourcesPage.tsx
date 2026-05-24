@@ -18,7 +18,7 @@ import { getCollectionStatistics, listDevices, listAlarms } from '@/api/dataColl
 import type { DataSource, PaginatedResponse } from '@/types/api';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
-import { PageSection, StatGrid, StatCard } from '@/components/common';
+import { PageContainer, PageSection, StatGrid, StatCard } from '@/components/common';
 import StatusTag from '@/components/StatusTag';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -281,7 +281,7 @@ const DataSourcesPage: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="数据源管理"
         subtitle="管理和配置数据源连接，支持数据库、API、文件系统、数据流等类型"
@@ -495,7 +495,7 @@ const DataSourcesPage: React.FC = () => {
       />
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

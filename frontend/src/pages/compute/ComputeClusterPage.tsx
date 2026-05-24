@@ -15,6 +15,7 @@ import {
   getClusterNodes, getClusterStatus, registerNode, deleteNode,
 } from '@/api/compute';
 import type { ClusterNode, ClusterStatus, RegisterNodeRequest } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
@@ -256,7 +257,7 @@ const ComputeClusterPage: React.FC = () => {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="计算集群"
         subtitle="管理计算集群节点的注册、监控与任务调度"
@@ -545,7 +546,7 @@ const ComputeClusterPage: React.FC = () => {
       />
 
       <LoadingOverlay open={nodesLoading && nodes.length === 0} />
-    </div>
+    </PageContainer>
   );
 };
 

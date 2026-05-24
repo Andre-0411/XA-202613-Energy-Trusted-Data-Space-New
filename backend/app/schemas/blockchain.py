@@ -93,6 +93,8 @@ class EvidenceCreate(BaseModel):
     resource_type: str = Field(description="资源类型")
     data_hash: str = Field(description="数据 SM3 哈希")
     evidence_data: dict = Field(description="存证数据")
+    operator_did: Optional[str] = Field(default=None, description="操作主体 DID")
+    operator_signature: Optional[str] = Field(default=None, description="操作者签名")
 
 
 class EvidenceResponse(BaseModel):
@@ -107,6 +109,9 @@ class EvidenceResponse(BaseModel):
     tx_hash: str
     block_number: Optional[int] = None
     timestamp: int
+    prev_hash: Optional[str] = None
+    chain_hash: Optional[str] = None
+    operator_did: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -115,6 +120,15 @@ class EvidenceResponse(BaseModel):
 class EvidenceBatchSubmit(BaseModel):
     """批量存证请求"""
     items: list[EvidenceCreate] = Field(description="存证条目列表", min_length=1, max_length=100)
+
+
+class ChainVerificationResponse(BaseModel):
+    """链式哈希验证响应"""
+    resource_id: str = Field(description="资源 ID")
+    chain_length: int = Field(description="链长度")
+    is_valid: bool = Field(description="链是否完整有效")
+    invalid_nodes: list[dict] = Field(default_factory=list, description="无效节点列表")
+    chain_records: list[EvidenceResponse] = Field(default_factory=list, description="链记录")
 
 
 class EvidenceBatchResult(BaseModel):

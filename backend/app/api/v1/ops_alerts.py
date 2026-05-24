@@ -93,6 +93,37 @@ async def list_notification_channels(
     return {"channels": channels, "total": len(channels)}
 
 
+@router.put("/notification-channels/{channel_id}", summary="更新通知渠道配置")
+async def update_notification_channel(
+    channel_id: str,
+    config: dict = None,
+    user: dict = Depends(get_current_user),
+):
+    """
+    更新通知渠道配置
+
+    支持的 channel_id: email, sms, webhook, dingtalk, wecom
+    """
+    result = await alert_service.update_notification_channel(channel_id, config)
+    if not result:
+        raise HTTPException(status_code=404, detail="通知渠道未找到")
+    return result
+
+
+@router.post("/notification-channels/{channel_id}/test", summary="测试通知渠道")
+async def test_notification_channel(
+    channel_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """
+    测试通知渠道是否可用
+    """
+    result = await alert_service.test_notification_channel(channel_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="通知渠道未找到")
+    return {"success": True, "message": f"测试通知已发送到 {channel_id}"}
+
+
 @router.post("/check-thresholds", summary="检查阈值告警")
 async def check_threshold_alerts(
     user: dict = Depends(get_current_user),

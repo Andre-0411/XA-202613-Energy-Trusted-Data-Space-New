@@ -168,6 +168,7 @@ const OpsOrgPage: React.FC = () => {
   const { data: orgData, isLoading: orgLoading } = useQuery({
     queryKey: ['organizations', filterStatus],
     queryFn: () => listOrganizations({ page: 1, page_size: 500, status: filterStatus || undefined }),
+    retry: false,
   });
 
   const allOrgs: Organization[] = orgData?.data?.items ?? [];

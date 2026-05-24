@@ -65,15 +65,16 @@ async def get_current_user(
             detail={"code": 1002, "message": "令牌无效或已过期"},
         )
 
-    # 检查黑名单（Redis 不可用时跳过）
+    # 检查黑名单（Redis 不可用时跳过，fail-open）
     try:
         redis = await get_redis()
-        blacklisted = await redis.get(f"token:blacklist:{token}")
-        if blacklisted:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"code": 1004, "message": "令牌已被撤销"},
-            )
+        if redis is not None:
+            blacklisted = await redis.get(f"token:blacklist:{token}")
+            if blacklisted:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail={"code": 1004, "message": "令牌已被撤销"},
+                )
     except HTTPException:
         raise
     except Exception as e:

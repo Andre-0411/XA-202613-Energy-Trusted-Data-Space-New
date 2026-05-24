@@ -31,7 +31,7 @@ import type { DataLineageGraph, DataLineageNode, DataLineageEdge } from '@/api/d
 import type { DataSource, DataAsset } from '@/types/api';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
-import { PageSection, StatGrid, StatCard } from '@/components/common';
+import { PageContainer, PageSection, StatGrid, StatCard } from '@/components/common';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import ReactECharts from 'echarts-for-react';
@@ -286,7 +286,7 @@ const DataLineagePage: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="数据血缘"
         subtitle="可视化展示数据源、数据资产、计算任务之间的血缘关系"
@@ -465,7 +465,7 @@ const DataLineagePage: React.FC = () => {
       </Drawer>
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

@@ -304,7 +304,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     import logging
     logging.getLogger(__name__).error(f"Unhandled exception: {exc}", exc_info=True)
 
-    return JSONResponse(
+    response = JSONResponse(
         status_code=500,
         content={
             "code": 9999,
@@ -313,3 +313,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
+    # 手动添加 CORS 头（CORSMiddleware 对异常处理器返回的响应不生效）
+    origin = request.headers.get("origin", "*")
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response

@@ -11,6 +11,7 @@ import { createTask } from '@/api/compute';
 import { listOrganizations } from '@/api/ops';
 import { listDataAssets } from '@/api/data';
 import type { ComputeTask, Organization, DataAsset } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 
@@ -37,16 +38,18 @@ const ComputeCreatePage: React.FC = () => {
   const queryClient = useQueryClient();
 
   // ===== 获取真实参与方（组织列表） =====
-  const { data: orgsData, isLoading: orgsLoading } = useQuery({
+  const { data: orgsData, isLoading: orgsLoading, isError: orgsError } = useQuery({
     queryKey: ['organizations-for-compute'],
     queryFn: () => listOrganizations({ page: 1, page_size: 100, status: 'active' }),
+    retry: false,
   });
   const parties: Organization[] = orgsData?.data?.items ?? [];
 
   // ===== 获取真实数据集（数据资产列表） =====
-  const { data: assetsData, isLoading: assetsLoading } = useQuery({
+  const { data: assetsData, isLoading: assetsLoading, isError: assetsError } = useQuery({
     queryKey: ['data-assets-for-compute'],
     queryFn: () => listDataAssets({ page: 1, page_size: 100 }),
+    retry: false,
   });
   const datasets: DataAsset[] = assetsData?.data?.items ?? [];
 
@@ -179,6 +182,8 @@ const ComputeCreatePage: React.FC = () => {
         <h4 className="text-sm font-semibold text-gray-700 mb-3">选择参与方（组织）</h4>
         {orgsLoading ? (
           <p className="text-center text-gray-400 py-8">加载中...</p>
+        ) : orgsError ? (
+          <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm">无法加载组织列表，请稍后重试或直接选择数据集。</div>
         ) : parties.length === 0 ? (
           <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm">暂无可用组织，请先在运营中心添加组织。</div>
         ) : (
@@ -214,6 +219,8 @@ const ComputeCreatePage: React.FC = () => {
         <h4 className="text-sm font-semibold text-gray-700 mb-3">选择数据集（数据资产）</h4>
         {assetsLoading ? (
           <p className="text-center text-gray-400 py-8">加载中...</p>
+        ) : assetsError ? (
+          <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm">无法加载数据资产列表，请稍后重试或直接选择参与方。</div>
         ) : datasets.length === 0 ? (
           <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm">暂无可用数据资产，请先在数据中心录入资产。</div>
         ) : (
@@ -303,7 +310,7 @@ const ComputeCreatePage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="创建计算任务"
         subtitle="通过步骤式表单配置并创建可信计算任务"
@@ -346,7 +353,7 @@ const ComputeCreatePage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 };
 

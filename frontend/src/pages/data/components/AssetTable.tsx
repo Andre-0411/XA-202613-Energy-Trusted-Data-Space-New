@@ -55,9 +55,14 @@ const getCategoryColor = (category: string) => {
   return cat?.color || '#6b7280';
 };
 
-/** 敏感级别颜色映射 */
+/** 敏感级别颜色映射 - 四级安全等级 */
 const sensitivityColor = (level: string): 'success' | 'info' | 'warning' | 'error' | 'default' => {
   const map: Record<string, 'success' | 'info' | 'warning' | 'error'> = {
+    '1': 'error',     // 核心
+    '2': 'warning',   // 重要
+    '3': 'info',      // 一般
+    '4': 'success',   // 公开
+    // 兼容旧值
     public: 'success',
     internal: 'info',
     confidential: 'warning',

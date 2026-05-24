@@ -9,6 +9,7 @@ import {
   SearchIcon, CheckCircleFilledIcon, ErrorCircleFilledIcon, TrendingUpIcon,
 } from 'tdesign-icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import StatCard from '@/components/common/StatCard';
@@ -175,7 +176,7 @@ const BcQueryPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="区块链查询"
         subtitle="区块链数据查询工具，支持交易、区块与合约查询"
@@ -296,7 +297,7 @@ const BcQueryPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 };
 

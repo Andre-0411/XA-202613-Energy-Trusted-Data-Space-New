@@ -342,9 +342,9 @@ async def get_lineage_graph(dataset_id: str,
     返回指定数据集的完整血缘图谱，数据结构适配前端 ECharts graph 类型，
     包含节点（nodes）和连线（links）。
     """
-    from app.services.data_lineage import get_lineage_store
+    from app.services.data_lineage import data_lineage_tracker as store_tracker
 
-    store = get_lineage_store()
+    store = store_tracker
     graph = store.get_lineage_graph(dataset_id)
 
     if not graph["nodes"]:
@@ -361,9 +361,9 @@ async def get_lineage_versions(dataset_id: str,
 
     返回数据集的所有版本记录，按时间倒序排列。
     """
-    from app.services.data_lineage import get_lineage_store
+    from app.services.data_lineage import data_lineage_tracker as store_tracker
 
-    store = get_lineage_store()
+    store = store_tracker
     versions = store.get_versions(dataset_id)
 
     return ApiResponse(data={
@@ -382,9 +382,9 @@ async def record_lineage_event(req: LineageEventRequest,
     记录数据从一个或多个源节点到目标节点的血缘关系，
     用于构建完整的数据血缘图谱。
     """
-    from app.services.data_lineage import get_lineage_store
+    from app.services.data_lineage import data_lineage_tracker as store_tracker
 
-    store = get_lineage_store()
+    store = store_tracker
     event = store.record_lineage_event(
         dataset_id=req.dataset_id,
         event_type=req.event_type,
@@ -409,9 +409,9 @@ async def trace_lineage(
     - forward: 正向溯源，追踪数据从哪来
     - backward: 反向追踪，追踪数据去了哪
     """
-    from app.services.data_lineage import get_lineage_store
+    from app.services.data_lineage import data_lineage_tracker as store_tracker
 
-    store = get_lineage_store()
+    store = store_tracker
 
     # 如果未指定节点，从数据集关联的边中找一个起始节点
     if not node_id:

@@ -12,6 +12,7 @@ import {
   getBenchmarkSummary, getBenchmarkTrends, runBenchmark, exportBenchmarkReport
 } from '@/api/compute';
 import type { AlgorithmBenchmark, BenchmarkTrendPoint } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
@@ -276,7 +277,7 @@ const ComputeBenchmarkPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="性能基准"
         subtitle="各算法性能对比分析、任务执行趋势与资源使用率监控"
@@ -389,7 +390,7 @@ const ComputeBenchmarkPage: React.FC = () => {
       </div>
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

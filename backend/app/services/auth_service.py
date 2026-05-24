@@ -469,11 +469,17 @@ async def logout(token: str) -> None:
     from app.database import _get_redis_client
 
     redis = _get_redis_client()
-    await redis.setex(
-        f"token:blacklist:{token}",
-        settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "1",
-    )
+    if redis is None:
+        logger.warning("Redis not available, logout will not blacklist token (fail-open)")
+        return
+    try:
+        await redis.setex(
+            f"token:blacklist:{token}",
+            settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "1",
+        )
+    except Exception as e:
+        logger.warning(f"Failed to blacklist token on logout: {e}")
 
 
 async def get_session(

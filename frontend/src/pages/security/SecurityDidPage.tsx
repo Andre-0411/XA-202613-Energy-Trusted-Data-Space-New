@@ -33,6 +33,7 @@ const SecurityDidPage: React.FC = () => {
   const { data: orgsData, isLoading: orgsLoading } = useQuery({
     queryKey: ['organizations-for-did'],
     queryFn: () => listOrganizations({ page: 1, page_size: 200 }),
+    retry: false,
   });
   const allOrgs: Organization[] = orgsData?.data?.items ?? [];
   const didOrgs = allOrgs.filter((o) => !!o.did);

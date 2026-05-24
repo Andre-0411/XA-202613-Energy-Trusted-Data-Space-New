@@ -183,3 +183,83 @@ export function getSlaMetrics() {
 export function getPerformanceMetrics() {
   return request.get<any, ApiResponse<Record<string, unknown>>>('/ops/kpi/performance');
 }
+
+// ==================== 收益分配 ====================
+
+export interface RevenueDistribution {
+  period: string;
+  total_revenue: number;
+  distributions: Array<{
+    organization_id: string;
+    organization_name: string;
+    total_revenue: number;
+    quality_score: number;
+    usage_score: number;
+    composite_score: number;
+    provider_share: number;
+    platform_fee: number;
+    algorithm_contribution: number;
+    governance_reward: number;
+    data_asset_count: number;
+    total_usage_count: number;
+  }>;
+  summary: {
+    platform_fee: number;
+    algorithm_contribution: number;
+    data_governance_reward: number;
+    data_provider_total: number;
+  };
+}
+
+export interface RevenueSummary {
+  total_revenue: number;
+  total_platform_fee: number;
+  total_algorithm_contribution: number;
+  total_governance_reward: number;
+  total_provider_share: number;
+  periods: Array<{
+    period: string;
+    total_revenue: number;
+    record_count: number;
+    platform_fee: number;
+    provider_share: number;
+  }>;
+}
+
+export function calculateRevenue(period: string, organizationId?: string) {
+  return request.get<any, ApiResponse<RevenueDistribution>>('/ops/revenue/calculate', {
+    params: { period, organization_id: organizationId },
+  });
+}
+
+export function getRevenueSummary(params?: { start_period?: string; end_period?: string; organization_id?: string }) {
+  return request.get<any, ApiResponse<RevenueSummary>>('/ops/revenue/summary', { params });
+}
+
+export function createSettlement(period: string, organizationId: string) {
+  return request.post<any, ApiResponse<Record<string, unknown>>>('/ops/revenue/settlements', null, {
+    params: { period, organization_id: organizationId },
+  });
+}
+
+export function listSettlements(params?: { period?: string; organization_id?: string; status?: string }) {
+  return request.get<any, ApiResponse<Record<string, unknown>[]>>('/ops/revenue/settlements', { params });
+}
+
+export function confirmSettlement(settlementId: string) {
+  return request.post<any, ApiResponse<Record<string, unknown>>>(`/ops/revenue/settlements/${settlementId}/confirm`);
+}
+
+// ==================== 告警通知渠道 ====================
+
+export function listNotificationChannels() {
+  return request.get<any, ApiResponse<Record<string, unknown>[]>>('/ops/alerts/notification-channels');
+}
+
+export function updateNotificationChannel(channelId: string, config: Record<string, unknown>) {
+  return request.put<any, ApiResponse<Record<string, unknown>>>(`/ops/alerts/notification-channels/${channelId}`, config);
+}
+
+export function testNotificationChannel(channelId: string) {
+  return request.post<any, ApiResponse<null>>(`/ops/alerts/notification-channels/${channelId}/test`);
+}

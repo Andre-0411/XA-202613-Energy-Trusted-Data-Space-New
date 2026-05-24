@@ -1,5 +1,5 @@
 """认证 API - /api/v1/auth"""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
@@ -128,18 +128,30 @@ async def unlock_account(
     # 权限检查：仅 admin 可解锁
     current_role = user.get("role", "")
     if current_role != "admin":
-        return ApiResponse(code=403, message="仅管理员可执行此操作", data=None)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": 1006, "message": "仅管理员可执行此操作"},
+        )
 
     result = await auth_service.unlock_account(db, request.user_id)
     return ApiResponse(message="账户已解锁", data=result)
 
 
 @router.get("/lockout-status/{user_id}", response_model=ApiResponse)
-async def get_lockout_status(user_id: str):
+async def get_lockout_status(
+    user_id: str,
+    user: dict = Depends(get_current_user),
+):
     """
     查询账户锁定状态
 
-    返回用户的登录失败次数和锁定剩余时间。
+    返回用户的登录失败次数和锁定剩余时间。仅管理员或用户本人可查询。
     """
-    status = await auth_service.get_login_lockout_status(user_id)
-    return ApiResponse(data=status)
+    # 仅管理员或用户本人可查询
+    if user.get("role") != "admin" and user.get("user_id") != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": 1006, "message": "仅管理员或用户本人可查询锁定状态"},
+        )
+    lockout_info = await auth_service.get_login_lockout_status(user_id)
+    return ApiResponse(data=lockout_info)

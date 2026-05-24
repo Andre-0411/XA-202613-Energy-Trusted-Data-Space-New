@@ -394,3 +394,109 @@ class SQLInjectionGuardMiddleware:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
+
+
+class XSSFilterMiddleware:
+    """
+    XSS 内容过滤中间件
+
+    检测请求体中的 XSS 攻击模式：
+    - <script> 标签注入
+    - 事件处理器注入 (onclick, onerror 等)
+    - javascript: 协议注入
+    - HTML 标签注入（img, iframe, object 等）
+    - data: URI 注入
+
+    对可疑请求进行过滤或拒绝
+    """
+
+    # XSS 攻击特征模式
+    XSS_PATTERNS: list[re.Pattern[str]] = [
+        # <script> 标签
+        re.compile(r"<\s*script[^>]*>", re.IGNORECASE),
+        re.compile(r"<\s*/\s*script\s*>", re.IGNORECASE),
+        # 事件处理器
+        re.compile(r"\bon\w+\s*=", re.IGNORECASE),
+        # javascript: 协议
+        re.compile(r"javascript\s*:", re.IGNORECASE),
+        # vbscript: 协议
+        re.compile(r"vbscript\s*:", re.IGNORECASE),
+        # data: URI 中的 HTML
+        re.compile(r"data\s*:\s*text/html", re.IGNORECASE),
+        # <img> 标签的 onerror
+        re.compile(r"<\s*img[^>]+onerror\s*=", re.IGNORECASE),
+        # <iframe> 标签
+        re.compile(r"<\s*iframe[^>]*>", re.IGNORECASE),
+        # <object> 和 <embed> 标签
+        re.compile(r"<\s*(object|embed)[^>]*>", re.IGNORECASE),
+        # eval() 函数
+        re.compile(r"\beval\s*\(", re.IGNORECASE),
+        # expression() CSS 注入
+        re.compile(r"expression\s*\(", re.IGNORECASE),
+        # <svg> 标签中的事件
+        re.compile(r"<\s*svg[^>]+onload\s*=", re.IGNORECASE),
+    ]
+
+    # 不检测的路径
+    SKIP_PATHS: frozenset[str] = frozenset({
+        "/health", "/docs", "/redoc", "/openapi.json", "/",
+    })
+
+    # 不检测的 Content-Type
+    SKIP_CONTENT_TYPES: frozenset[str] = frozenset({
+        "multipart/form-data",  # 文件上传跳过
+    })
+
+    async def __call__(self, request: Request, call_next) -> Response:
+        path: str = request.url.path
+
+        if path in self.SKIP_PATHS:
+            return await call_next(request)
+
+        # 只检查 POST/PUT/PATCH 请求
+        if request.method not in ("POST", "PUT", "PATCH"):
+            return await call_next(request)
+
+        # 检查 Content-Type
+        content_type = request.headers.get("Content-Type", "")
+        if any(ct in content_type for ct in self.SKIP_CONTENT_TYPES):
+            return await call_next(request)
+
+        # 检查查询参数
+        query_string: str = str(request.query_params)
+        if self._contains_xss(query_string):
+            logger.warning(f"XSS detected in query: {query_string[:200]}")
+            return self._blocked_response()
+
+        # 检查请求体
+        try:
+            body = await request.body()
+            if body:
+                body_text = body.decode("utf-8", errors="ignore")
+                if self._contains_xss(body_text):
+                    logger.warning(f"XSS detected in request body: {body_text[:200]}")
+                    return self._blocked_response()
+        except Exception as e:
+            logger.warning(f"Failed to read request body for XSS check: {e}")
+
+        return await call_next(request)
+
+    def _contains_xss(self, text: str) -> bool:
+        """检查文本是否包含 XSS 攻击特征"""
+        for pattern in self.XSS_PATTERNS:
+            if pattern.search(text):
+                return True
+        return False
+
+    @staticmethod
+    def _blocked_response() -> JSONResponse:
+        """返回阻止响应"""
+        return JSONResponse(
+            status_code=403,
+            content={
+                "code": 6060,
+                "message": "检测到潜在的 XSS 攻击，请求已被阻止",
+                "data": None,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )

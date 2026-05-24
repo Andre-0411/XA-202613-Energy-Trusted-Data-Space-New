@@ -33,12 +33,17 @@ from app.api.v1 import (
     compute_enhanced,
     compute_benchmark,
     compute_quota,
+    compute_router,
+    compute_result,
+    task_status,
     agent_manage,
     blockchain_nft,
     blockchain_evidence,
     blockchain_contract,
     blockchain_settle,
     blockchain_transactions,
+    billing_rule,
+    settlement_enhanced,
     cross_chain,
     ops_user,
     ops_org,
@@ -55,6 +60,7 @@ from app.api.v1 import (
     ops_import,
     ops_health,
     ops_audit_external,
+    ops_revenue,
     security_policy,
     security_did,
     security_vc,
@@ -126,6 +132,9 @@ router.include_router(compute_cluster.router, prefix="/compute/cluster", tags=["
 router.include_router(compute_enhanced.router, prefix="/compute/enhanced", tags=["计算增强"])
 router.include_router(compute_benchmark.router, prefix="/compute/benchmarks", tags=["性能基准"])
 router.include_router(compute_quota.router, prefix="/compute/quota", tags=["计算配额"])
+router.include_router(compute_router.router, prefix="/compute/router", tags=["隐私计算路由"])
+router.include_router(compute_result.router, prefix="/compute/results", tags=["计算结果管理"])
+router.include_router(task_status.router, prefix="/compute/task-status", tags=["任务状态追踪"])
 router.include_router(agent_manage.router, prefix="/agents", tags=["Agent 管理"])
 
 # 区块链
@@ -133,6 +142,8 @@ router.include_router(blockchain_nft.router, prefix="/blockchain/nft", tags=["NF
 router.include_router(blockchain_evidence.router, prefix="/blockchain/evidence", tags=["存证"])
 router.include_router(blockchain_contract.router, prefix="/blockchain/contracts", tags=["智能合约"])
 router.include_router(blockchain_settle.router, prefix="/blockchain/settlement", tags=["链上结算"])
+router.include_router(settlement_enhanced.router, prefix="/blockchain/settlement-enhanced", tags=["增强结算"])
+router.include_router(billing_rule.router, prefix="/blockchain/billing-rules", tags=["计费规则"])
 router.include_router(blockchain_transactions.router, prefix="/blockchain", tags=["链上交易"])
 router.include_router(cross_chain.router, prefix="/blockchain/bridge", tags=["跨链互操作"])
 
@@ -152,6 +163,7 @@ router.include_router(ops_gdpr.router, prefix="/ops/gdpr", tags=["GDPR合规"])
 router.include_router(ops_import.router, prefix="/ops/import", tags=["批量导入"])
 router.include_router(ops_health.router, prefix="/ops/health", tags=["健康检查与自愈"])
 router.include_router(ops_audit_external.router, prefix="/ops/audit-external", tags=["第三方审计只读接口"])
+router.include_router(ops_revenue.router, prefix="/ops/revenue", tags=["收益分配"])
 
 # 安全管控
 router.include_router(abac.router, prefix="/security/abac", tags=["ABAC 策略引擎"])

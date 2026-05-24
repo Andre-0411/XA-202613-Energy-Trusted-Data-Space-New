@@ -15,12 +15,15 @@ import {
   getChainStatus, deployContract, deployAllContracts,
 } from '@/api/blockchain';
 import type { SmartContract } from '@/types/api';
+import PageContainer, { PageSection } from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import StatCard from '@/components/common/StatCard';
 import ChartCard from '@/components/common/ChartCard';
+import DataTable from '@/components/common/DataTable';
+import type { Column } from '@/components/common/DataTable';
 
 /** 合约状态颜色映射 */
 const contractStatusColor = (status: string): 'success' | 'warning' | 'error' | 'default' => {
@@ -252,11 +255,63 @@ const BcContractsPage: React.FC = () => {
     [],
   );
 
-  const totalPages = Math.ceil(total / pageSize);
+  // ===== 表格列定义 =====
+  const columns: Column<SmartContract>[] = useMemo(() => [
+    { id: 'name', label: '合约名称', minWidth: 160, render: (row) => <span className="text-sm font-medium">{row.name}</span> },
+    {
+      id: 'address', label: '合约地址', minWidth: 180,
+      render: (row) => (
+        <Tooltip content={row.address || 'N/A'}>
+          <Tag variant="outline">
+            {row.address ? (row.address.length > 20 ? row.address.slice(0, 10) + '...' + row.address.slice(-8) : row.address) : 'N/A'}
+          </Tag>
+        </Tooltip>
+      ),
+    },
+    { id: 'version', label: '版本', minWidth: 80, render: (row) => `v${row.version}` },
+    {
+      id: 'status', label: '状态', minWidth: 100,
+      render: (row) => <StatusTag status={contractStatusLabel(row.status)} color={contractStatusColor(row.status)} />,
+    },
+    {
+      id: 'deployed_at', label: '部署时间', minWidth: 160,
+      render: (row) => row.deployed_at ? new Date(row.deployed_at).toLocaleString('zh-CN') : '未部署',
+    },
+    {
+      id: 'actions', label: '操作', minWidth: 200, align: 'center',
+      render: (row) => (
+        <div className="flex items-center justify-center gap-1">
+          <Tooltip content="查看详情">
+            <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center" onClick={() => detailMut.mutate(row.id)}>
+              <BrowseIcon />
+            </span>
+          </Tooltip>
+          <Tooltip content="调用合约">
+            <span className={`cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-blue-500 ${row.status !== 'active' && row.status !== 'DEPLOYED' ? 'opacity-40 pointer-events-none' : ''}`} onClick={() => openInvoke(row)}>
+              <CheckCircleFilledIcon />
+            </span>
+          </Tooltip>
+          <Tooltip content="交易记录">
+            <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-purple-500" onClick={() => openTransactions(row.id)}>
+              <TrendingUpIcon />
+            </span>
+          </Tooltip>
+          {row.status !== 'active' && row.status !== 'DEPLOYED' && (
+            <Tooltip content="部署此合约">
+              <span className={`cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-green-500 ${deployMut.isPending ? 'opacity-40 pointer-events-none' : ''}`} onClick={() => deployMut.mutate(row.name)}>
+                <CheckCircleFilledIcon />
+              </span>
+            </Tooltip>
+          )}
+        </div>
+      ),
+    },
+  ], []);
+
   const txTotalPages = Math.ceil(txTotal / txPageSize);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="智能合约管理"
         subtitle="管理链上智能合约，支持查看详情、调用合约、交易记录与部署管理"
@@ -295,96 +350,18 @@ const BcContractsPage: React.FC = () => {
       </div>
 
       {/* 数据表格 */}
-      <div className="rounded-xl bg-white border border-gray-200 flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 z-10">
-              <tr className="border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-bold text-gray-600">合约名称</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">合约地址</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">版本</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">状态</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">部署时间</th>
-                <th className="text-center px-4 py-3 font-bold text-gray-600 w-[200px]">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedItems.map((row) => (
-                <tr key={row.id || row.name} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <span className="text-sm font-medium">{row.name}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Tooltip content={row.address || 'N/A'}>
-                      <Tag variant="outline">
-                        {row.address
-                          ? (row.address.length > 20
-                            ? row.address.slice(0, 10) + '...' + row.address.slice(-8)
-                            : row.address)
-                          : 'N/A'}
-                      </Tag>
-                    </Tooltip>
-                  </td>
-                  <td className="px-4 py-3">v{row.version}</td>
-                  <td className="px-4 py-3">
-                    <StatusTag status={contractStatusLabel(row.status)} color={contractStatusColor(row.status)} />
-                  </td>
-                  <td className="px-4 py-3">
-                    {row.deployed_at ? new Date(row.deployed_at).toLocaleString('zh-CN') : '未部署'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Tooltip content="查看详情">
-                        <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center" onClick={() => detailMut.mutate(row.id)}>
-                          <BrowseIcon />
-                        </span>
-                      </Tooltip>
-                      <Tooltip content="调用合约">
-                        <span className={`cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-blue-500 ${row.status !== 'active' && row.status !== 'DEPLOYED' ? 'opacity-40 pointer-events-none' : ''}`} onClick={() => openInvoke(row)}>
-                          <CheckCircleFilledIcon />
-                        </span>
-                      </Tooltip>
-                      <Tooltip content="交易记录">
-                        <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-purple-500" onClick={() => openTransactions(row.id)}>
-                          <TrendingUpIcon />
-                        </span>
-                      </Tooltip>
-                      {row.status !== 'active' && row.status !== 'DEPLOYED' && (
-                        <Tooltip content="部署此合约">
-                          <span className={`cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-green-500 ${deployMut.isPending ? 'opacity-40 pointer-events-none' : ''}`} onClick={() => deployMut.mutate(row.name)}>
-                            <CheckCircleFilledIcon />
-                          </span>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {pagedItems.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400">暂无数据</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {/* 分页 */}
-        <div className="flex items-center justify-end px-4 py-3 border-t border-gray-200 gap-4">
-          <span className="text-xs text-gray-500">每页行数</span>
-          <select
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-            value={pageSize}
-            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
-          >
-            {[10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-          <span className="text-xs text-gray-500">{`${page * pageSize + 1}-${Math.min((page + 1) * pageSize, total)} / ${total}`}</span>
-          <div className="flex gap-1">
-            <button className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-50" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>上一页</button>
-            <button className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-50" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>下一页</button>
-          </div>
-        </div>
-      </div>
+      <PageSection padding="none">
+        <DataTable
+          columns={columns}
+          rows={pagedItems}
+          loading={isLoading}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPageSize(size); setPage(0); }}
+        />
+      </PageSection>
 
       {/* 合约详情弹窗 */}
       <Dialog visible={detailOpen} onClose={() => setDetailOpen(false)} header="合约详情" width="640px" footer={
@@ -488,7 +465,7 @@ const BcContractsPage: React.FC = () => {
       </Dialog>
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

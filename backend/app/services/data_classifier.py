@@ -516,3 +516,223 @@ def get_classification_rules() -> list[dict]:
     返回所有分类规则列表，供 API 端点调用。
     """
     return data_classifier._rules
+
+
+# ==================== 基于字段类型的自动分级 ====================
+
+# 字段类型 -> 建议安全级别映射
+FIELD_TYPE_LEVEL_MAP = {
+    # 核心级别字段
+    "password": 1, "secret": 1, "token": 1, "private_key": 1,
+    "密码": 1, "密钥": 1, "私钥": 1,
+    # 重要级别字段
+    "id_card": 2, "phone": 2, "email": 2, "bank_account": 2,
+    "身份证": 2, "电话": 2, "手机": 2, "邮箱": 2, "银行账号": 2,
+    "credit_card": 2, "social_security": 2,
+    # 敏感级别字段
+    "address": 3, "name": 3, "birth_date": 3, "salary": 3,
+    "地址": 3, "姓名": 3, "出生日期": 3, "薪资": 3,
+    "medical": 3, "health": 3, "诊断": 3,
+    # 公开级别字段（默认）
+    "temperature": 4, "humidity": 4, "wind_speed": 4,
+    "温度": 4, "湿度": 4, "风速": 4,
+}
+
+
+def classify_by_field_types(schema_def: dict) -> dict:
+    """
+    基于字段类型自动分级
+
+    分析 Schema 中的字段名称和类型，匹配敏感字段关键词，
+    返回建议的安全级别和匹配到的敏感字段。
+
+    Args:
+        schema_def: 数据 Schema 定义
+
+    Returns:
+        {
+            "suggested_level": int,
+            "sensitive_fields": list[dict],
+            "confidence": float,
+        }
+    """
+    if not schema_def or not isinstance(schema_def, dict):
+        return {"suggested_level": 4, "sensitive_fields": [], "confidence": 0.3}
+
+    fields = schema_def.get("fields", schema_def.get("columns", []))
+    if not isinstance(fields, list):
+        return {"suggested_level": 4, "sensitive_fields": [], "confidence": 0.3}
+
+    sensitive_fields = []
+    max_level = 4  # 默认公开
+
+    for field in fields:
+        if not isinstance(field, dict):
+            continue
+
+        field_name = field.get("name", "").lower()
+        field_type = str(field.get("type", "")).lower()
+        field_desc = str(field.get("description", "")).lower()
+        combined = f"{field_name} {field_type} {field_desc}"
+
+        # 匹配敏感字段关键词
+        for keyword, level in FIELD_TYPE_LEVEL_MAP.items():
+            if keyword.lower() in combined:
+                if level < max_level:
+                    max_level = level
+                sensitive_fields.append({
+                    "field_name": field.get("name", ""),
+                    "matched_keyword": keyword,
+                    "suggested_level": level,
+                    "level_label": SENSITIVITY_LABELS.get(level, "公开"),
+                })
+                break
+
+    # 计算置信度
+    if sensitive_fields:
+        confidence = min(0.5 + len(sensitive_fields) * 0.1, 0.95)
+    else:
+        confidence = 0.3
+
+    return {
+        "suggested_level": max_level,
+        "sensitive_fields": sensitive_fields,
+        "confidence": round(confidence, 2),
+    }
+
+
+# ==================== 人工审核确认流程 ====================
+
+# 审核状态定义
+REVIEW_STATUS = {
+    "pending": "待审核",
+    "auto_classified": "自动分类完成",
+    "human_reviewed": "人工审核确认",
+    "override": "人工覆盖分级",
+}
+
+
+async def submit_for_review(
+    asset_id: str,
+    auto_result: dict,
+    reviewer_id: Optional[str] = None,
+) -> dict:
+    """
+    提交分类结果供人工审核
+
+    Args:
+        asset_id: 资产 ID
+        auto_result: 自动分类结果
+        reviewer_id: 审核人 ID（可选）
+
+    Returns:
+        审核记录
+    """
+    review_record = {
+        "asset_id": asset_id,
+        "auto_category": auto_result.get("category"),
+        "auto_level": auto_result.get("classification_level"),
+        "auto_confidence": auto_result.get("confidence", 0),
+        "auto_reason": auto_result.get("reason", ""),
+        "review_status": "pending",
+        "reviewer_id": reviewer_id,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "field_type_result": auto_result.get("field_type_result"),
+        "keyword_result": auto_result.get("keyword_result"),
+    }
+
+    logger.info(f"分类审核提交: asset_id={asset_id}, auto_level={auto_result.get('classification_level')}")
+    return review_record
+
+
+async def confirm_classification(
+    asset_id: str,
+    confirmed_category: str,
+    confirmed_level: int,
+    reviewer_id: str,
+    review_comment: Optional[str] = None,
+) -> dict:
+    """
+    人工确认分类分级结果
+
+    Args:
+        asset_id: 资产 ID
+        confirmed_category: 确认的大类
+        confirmed_level: 确认的安全级别
+        reviewer_id: 审核人 ID
+        review_comment: 审核意见
+
+    Returns:
+        确认结果
+    """
+    if confirmed_category not in ["发电", "用电", "调度", "市场", "设备状态", "地理信息"]:
+        raise ValueError(f"无效的分类: {confirmed_category}")
+
+    if confirmed_level not in [1, 2, 3, 4]:
+        raise ValueError(f"无效的安全级别: {confirmed_level}")
+
+    result = {
+        "asset_id": asset_id,
+        "confirmed_category": confirmed_category,
+        "confirmed_level": confirmed_level,
+        "level_label": SENSITIVITY_LABELS.get(confirmed_level, "公开"),
+        "review_status": "human_reviewed",
+        "reviewer_id": reviewer_id,
+        "review_comment": review_comment,
+        "reviewed_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    logger.info(
+        f"分类审核确认: asset_id={asset_id}, "
+        f"category={confirmed_category}, level={confirmed_level}"
+    )
+    return result
+
+
+async def override_classification(
+    asset_id: str,
+    new_category: str,
+    new_level: int,
+    override_reason: str,
+    operator_id: str,
+) -> dict:
+    """
+    人工覆盖分级结果
+
+    当自动分类不准确时，允许人工覆盖。
+
+    Args:
+        asset_id: 资产 ID
+        new_category: 新的大类
+        new_level: 新的安全级别
+        override_reason: 覆盖原因
+        operator_id: 操作人 ID
+
+    Returns:
+        覆盖结果
+    """
+    if new_category not in ["发电", "用电", "调度", "市场", "设备状态", "地理信息"]:
+        raise ValueError(f"无效的分类: {new_category}")
+
+    if new_level not in [1, 2, 3, 4]:
+        raise ValueError(f"无效的安全级别: {new_level}")
+
+    if not override_reason or len(override_reason.strip()) < 5:
+        raise ValueError("覆盖原因不能为空且不少于5个字")
+
+    result = {
+        "asset_id": asset_id,
+        "new_category": new_category,
+        "new_level": new_level,
+        "level_label": SENSITIVITY_LABELS.get(new_level, "公开"),
+        "review_status": "override",
+        "override_reason": override_reason,
+        "operator_id": operator_id,
+        "overridden_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    logger.info(
+        f"分级覆盖: asset_id={asset_id}, "
+        f"new_category={new_category}, new_level={new_level}, reason={override_reason}"
+    )
+    return result

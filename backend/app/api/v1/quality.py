@@ -28,6 +28,8 @@ class QualityCheckRequest(BaseModel):
     sample_size: Optional[int] = Field(None, description="采样数量")
 
 
+@router.get("", response_model=ApiResponse[PaginatedResponse[QualityReportResponse]])
+@router.get("/", response_model=ApiResponse[PaginatedResponse[QualityReportResponse]])
 @router.get("/reports", response_model=ApiResponse[PaginatedResponse[QualityReportResponse]])
 async def list_quality_reports(
     asset_id: Optional[str] = Query(None, description="按资产 ID 筛选"),

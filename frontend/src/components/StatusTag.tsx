@@ -119,7 +119,8 @@ const DOT_COLOR_MAP: Record<string, string> = {
  * @param status - 状态文本（英文或中文）
  * @returns ChipColor
  */
-function resolveStatusColor(status: string): ChipColor {
+function resolveStatusColor(status: string | undefined | null): ChipColor {
+  if (!status) return 'default';
   // 先尝试中文映射
   const mappedStatus = CN_STATUS_MAP[status] ?? status;
   const lowerStatus = mappedStatus.toLowerCase();
@@ -137,16 +138,17 @@ function resolveStatusColor(status: string): ChipColor {
  * 格式化状态文本显示
  * 将下划线分隔转为可读格式
  */
-function formatStatusLabel(status: string): string {
+function formatStatusLabel(status: string | undefined | null): string {
+  if (!status) return '未知';
   if (CN_STATUS_MAP[status]) return status;
-  return status
+  return String(status)
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 interface StatusTagProps {
   /** 状态值（英文或中文） */
-  status: string;
+  status: string | undefined | null;
   /** 强制指定颜色（覆盖自动推断） */
   color?: ChipColor;
   /** 是否显示小圆点图标 */

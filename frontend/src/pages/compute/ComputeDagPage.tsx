@@ -28,6 +28,7 @@ import 'reactflow/dist/style.css';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listDags, createDag, updateDag, executeDag } from '@/api/compute';
 import type { DagDefinition, DagNode as DagNodeType, DagEdge as DagEdgeType } from '@/types/api';
+import PageContainer from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
@@ -272,7 +273,7 @@ const ComputeDagPage: React.FC = () => {
   const dagList: DagDefinition[] = dagListData?.data?.items ?? [];
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="DAG 画布"
         subtitle="可视化编排可信计算 DAG 工作流"
@@ -456,7 +457,7 @@ const ComputeDagPage: React.FC = () => {
       )}
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 

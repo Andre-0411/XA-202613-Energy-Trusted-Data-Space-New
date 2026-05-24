@@ -16,7 +16,7 @@ import {
 import type { ServiceCatalog, Subscription } from '@/types/api';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
-import { PageSection, StatGrid, StatCard } from '@/components/common';
+import { PageContainer, PageSection, StatGrid, StatCard } from '@/components/common';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
@@ -230,7 +230,7 @@ const ServiceRequestPage: React.FC = () => {
   const currentTotal = tabValue === 0 ? totalServices : totalSubscriptions;
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 h-full overflow-auto">
+    <PageContainer>
       <PageHeader
         title="服务申请管理"
         subtitle="在线提交数据使用申请，跟踪审批流程"
@@ -589,7 +589,7 @@ const ServiceRequestPage: React.FC = () => {
           </div>
         )}
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

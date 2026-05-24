@@ -32,16 +32,20 @@ from app.schemas.blockchain import (
 
 logger = logging.getLogger(__name__)
 
-# 8 节点证据链类型
+# 全链路证据链节点类型 (12 节点完整覆盖)
 EVIDENCE_NODE_TYPES = [
     "collect",       # 采集
     "preprocess",    # 预处理
     "classify",      # 分类分级
     "publish",       # 发布至目录
     "apply",         # 使用申请
+    "approve",       # 审批
     "compute",       # 可信计算
     "result",        # 计算结果
+    "export",        # 数据导出
     "settle",        # 链上结算
+    "destroy",       # 数据销毁
+    "audit",         # 审计追溯
 ]
 
 
@@ -58,11 +62,11 @@ async def submit_evidence(
     request: EvidenceCreate,
 ) -> EvidenceResponse:
     """
-    提交存证
+    提交存证（增强版：支持链式哈希）
 
     流程:
     1. 校验节点类型
-    2. 验证数据哈希
+    2. 计算前序哈希 (prev_hash) 和链式哈希 (chain_hash)
     3. 调用 UsageLogger 合约 logUsage 方法
     4. 记录存证与交易
     """
@@ -70,9 +74,28 @@ async def submit_evidence(
     if request.node_type not in EVIDENCE_NODE_TYPES:
         raise EvidenceError(f"无效的存证节点类型: {request.node_type}，允许值: {EVIDENCE_NODE_TYPES}")
 
-    # 2. 验证数据哈希（可选：重新计算比对）
-    computed_hash = gmssl_adapter.sm3_hash(str(request.evidence_data))
-    # 不强制要求匹配，因为 data_hash 可能是对原始数据的哈希
+    # 2. 计算链式哈希
+    prev_hash = None
+    chain_hash = None
+    try:
+        # 查询该资源的最新存证记录
+        latest_result = await db.execute(
+            select(EvidenceRecord)
+            .where(EvidenceRecord.resource_id == uuid.UUID(request.resource_id))
+            .order_by(EvidenceRecord.timestamp.desc())
+            .limit(1)
+        )
+        latest_record = latest_result.scalar_one_or_none()
+        if latest_record:
+            prev_hash = latest_record.chain_hash or latest_record.data_hash
+            # chain_hash = SM3(prev_hash + current_data_hash)
+            chain_hash = gmssl_adapter.sm3_hash(f"{prev_hash}:{request.data_hash}")
+        else:
+            # 第一条记录，chain_hash = data_hash
+            chain_hash = request.data_hash
+    except Exception as e:
+        logger.warning(f"Chain hash computation failed: {e}")
+        chain_hash = request.data_hash
 
     # 3. 链上存证 - 优先使用 UsageLogger 合约
     tx_hash = ""
@@ -129,7 +152,7 @@ async def submit_evidence(
             logger.error(f"Evidence chain call failed: {e}")
             raise EvidenceError(f"链上存证失败: {e}")
 
-    # 4. 记录存证
+    # 4. 记录存证（含链式哈希）
     evidence = EvidenceRecord(
         node_type=request.node_type,
         resource_id=uuid.UUID(request.resource_id),
@@ -140,6 +163,10 @@ async def submit_evidence(
         tx_hash=tx_hash,
         block_number=block_number,
         timestamp=int(time.time()),
+        prev_hash=prev_hash,
+        chain_hash=chain_hash,
+        operator_did=request.operator_did,
+        operator_signature=request.operator_signature,
     )
     db.add(evidence)
 
@@ -152,6 +179,7 @@ async def submit_evidence(
             "nodeType": request.node_type,
             "resourceId": request.resource_id,
             "dataHash": request.data_hash,
+            "chainHash": chain_hash,
         },
         block_number=block_number,
         status="confirmed",
@@ -305,6 +333,64 @@ async def get_evidence_chain_from_chain(
     except Exception as e:
         logger.error(f"Chain evidence query failed: {e}")
         raise EvidenceError(f"链上存证查询失败: {e}")
+
+
+# ==================== 链式哈希验证 ====================
+
+
+async def verify_evidence_chain_hash(
+    db: AsyncSession,
+    resource_id: str,
+    resource_type: Optional[str] = None,
+) -> dict:
+    """
+    验证资源证据链的链式哈希完整性
+
+    检查每条记录的 prev_hash 是否指向前一条记录的 chain_hash/data_hash。
+
+    Args:
+        db: 异步数据库会话
+        resource_id: 资源 ID
+        resource_type: 资源类型（可选过滤）
+
+    Returns:
+        验证结果
+    """
+    chain = await get_evidence_chain(db, resource_id, resource_type)
+
+    if not chain:
+        return {
+            "resource_id": resource_id,
+            "chain_length": 0,
+            "is_valid": True,
+            "invalid_nodes": [],
+            "chain_records": [],
+        }
+
+    invalid_nodes = []
+    for i in range(1, len(chain)):
+        current = chain[i]
+        previous = chain[i - 1]
+
+        # 前一条的 chain_hash 或 data_hash
+        expected_prev = previous.chain_hash or previous.data_hash
+        if current.prev_hash and current.prev_hash != expected_prev:
+            invalid_nodes.append({
+                "index": i,
+                "evidence_id": current.id,
+                "node_type": current.node_type,
+                "expected_prev_hash": expected_prev,
+                "actual_prev_hash": current.prev_hash,
+                "error": "prev_hash 不匹配",
+            })
+
+    return {
+        "resource_id": resource_id,
+        "chain_length": len(chain),
+        "is_valid": len(invalid_nodes) == 0,
+        "invalid_nodes": invalid_nodes,
+        "chain_records": chain,
+    }
 
 
 # ==================== 增强功能 ====================

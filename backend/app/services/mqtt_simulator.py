@@ -66,7 +66,7 @@ DEVICE_CONFIGS = [
             "vibration": {"unit": "mm/s", "range": (0, 12), "critical": False},
         },
     },
-    # 光伏发电站 (2个)
+    # 光伏发电站 (3个)
     {
         "did": "did:fisco:solar_plant_001",
         "name": "中广核光伏-01号电站",
@@ -95,6 +95,21 @@ DEVICE_CONFIGS = [
             "panel_temperature": {"unit": "°C", "range": (-10, 85), "critical": True},
             "voltage": {"unit": "V", "range": (0, 1000), "critical": False},
             "current": {"unit": "A", "range": (0, 100), "critical": False},
+        },
+    },
+    {
+        "did": "did:fisco:wind_farm_004",
+        "name": "国电投风场-01号风机",
+        "type": "wind_turbine",
+        "enterprise": "国家电投",
+        "location": "新疆哈密",
+        "capacity_kw": 5000,
+        "data_types": {
+            "power_output": {"unit": "kWh", "range": (0, 5000), "critical": True},
+            "wind_speed": {"unit": "m/s", "range": (0, 35), "critical": True},
+            "rotation_speed": {"unit": "rpm", "range": (0, 16), "critical": False},
+            "temperature": {"unit": "°C", "range": (-40, 60), "critical": True},
+            "vibration": {"unit": "mm/s", "range": (0, 15), "critical": False},
         },
     },
 ]

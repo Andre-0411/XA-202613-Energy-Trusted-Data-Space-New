@@ -98,11 +98,10 @@ def health_check():
     Health check endpoint (no auth required).
     Returns system status info.
     """
-    from app.config import get_settings
-    settings = get_settings()
+    from app.config import settings
 
     return {
         "status": "ok",
-        "version": settings.APP_VERSION,
+        "version": "1.0.0",
         "timestamp": datetime.utcnow().isoformat(),
     }

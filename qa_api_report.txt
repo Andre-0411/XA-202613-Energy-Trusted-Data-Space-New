@@ -1,0 +1,248 @@
+能源可信数据空间项目 API 端点 QA 测试报告
+================================================================================
+
+总计: 74 | 通过: 31 | 失败: 42 | 警告: 1
+通过率: 41.9%
+
+--- 认证 (1/2 通过) ---
+  ✅ 认证-获取会话
+     路径: GET /api/v1/auth/session  状态码: 200  API代码: 0
+     数据: dict['user_id', 'username', 'did', 'role', 'permissions']
+  ❌ 认证-刷新token
+     路径: POST /api/v1/auth/refresh  状态码: 401  API代码: 1002
+     消息: 刷新令牌无效  数据: null
+
+--- 数据资源 (7/9 通过) ---
+  ✅ 数据资源-数据源列表
+     路径: GET /api/v1/data/sources  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 数据资源-数据资产列表
+     路径: GET /api/v1/data/assets  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 数据资源-数据目录
+     路径: GET /api/v1/data/catalog  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 数据资源-元数据
+     路径: GET /api/v1/data/metadata  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 数据资源-标签
+     路径: GET /api/v1/data/tags  状态码: 200  API代码: 0
+     数据: list[0]
+  ✅ 数据资源-数据质量
+     路径: GET /api/v1/data/quality  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 数据资源-服务市场
+     路径: GET /api/v1/data/market  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 数据资源-服务申请
+     路径: GET /api/v1/data/applications  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 数据资源-数据流水线
+     路径: GET /api/v1/data/pipeline  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+
+--- 计算 (4/14 通过) ---
+  ✅ 计算-任务列表
+     路径: GET /api/v1/compute/tasks  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 计算-计算代理
+     路径: GET /api/v1/compute/agents  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 计算-计算集群
+     路径: GET /api/v1/compute/cluster  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 计算-DAG编排
+     路径: GET /api/v1/compute/dag  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 计算-联邦学习
+     路径: GET /api/v1/compute/fl  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 计算-安全多方计算
+     路径: GET /api/v1/compute/mpc  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 计算-TEE
+     路径: GET /api/v1/compute/tee  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 计算-同态加密
+     路径: GET /api/v1/compute/he  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 计算-差分隐私
+     路径: GET /api/v1/compute/dp  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 计算-数据沙箱
+     路径: GET /api/v1/compute/sandbox  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'limit', 'offset']
+  ❌ 计算-计算结果
+     路径: GET /api/v1/compute/results  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 计算-性能基准
+     路径: GET /api/v1/compute/benchmarks  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'limit', 'offset']
+  ❌ 计算-计算配额
+     路径: GET /api/v1/compute/quota  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 计算-增强计算
+     路径: GET /api/v1/compute/enhanced  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+
+--- 区块链 (3/7 通过) ---
+  ✅ 区块链-NFT列表
+     路径: GET /api/v1/blockchain/nft  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 区块链-存证列表
+     路径: GET /api/v1/blockchain/evidence  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 区块链-合约列表
+     路径: GET /api/v1/blockchain/contracts  状态码: 200  API代码: 0
+     数据: list[0]
+  ❌ 区块链-结算列表
+     路径: GET /api/v1/blockchain/settlement  状态码: 405  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 区块链-增强结算
+     路径: GET /api/v1/blockchain/settlement-enhanced  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 区块链-计费规则
+     路径: GET /api/v1/blockchain/billing-rules  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 区块链-跨链互操作
+     路径: GET /api/v1/blockchain/bridge  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+
+--- 运营 (3/14 通过) ---
+  ✅ 运营-用户列表
+     路径: GET /api/v1/ops/users  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 运营-组织列表
+     路径: GET /api/v1/ops/organizations  状态码: 500  API代码: 9999
+     消息: 系统内部错误  数据: null
+  ✅ 运营-服务管理
+     路径: GET /api/v1/ops/services  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 运营-计费管理
+     路径: GET /api/v1/ops/billing  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 运营-运营监控
+     路径: GET /api/v1/ops/monitoring  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 运营-监控增强
+     路径: GET /api/v1/ops/monitoring-enhanced  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ⚠️ 运营-告警管理
+     路径: GET /api/v1/ops/alerts  状态码: 200  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 运营-SLA管理
+     路径: GET /api/v1/ops/sla  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 运营-合规管理
+     路径: GET /api/v1/ops/compliance  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 运营-KPI仪表盘
+     路径: GET /api/v1/ops/kpi  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 运营-配额管理
+     路径: GET /api/v1/ops/quotas  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 运营-GDPR合规
+     路径: GET /api/v1/ops/gdpr  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 运营-健康检查
+     路径: GET /api/v1/ops/health  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 运营-收益分配
+     路径: GET /api/v1/ops/revenue  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+
+--- 安全 (4/13 通过) ---
+  ❌ 安全-DID身份
+     路径: GET /api/v1/security/did  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 安全-可验证凭证
+     路径: GET /api/v1/security/vc  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 安全-密钥管理
+     路径: GET /api/v1/security/keys  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'limit', 'offset']
+  ✅ 安全-安全策略
+     路径: GET /api/v1/security/policies  状态码: 200  API代码: 0
+     数据: list[0]
+  ✅ 安全-威胁检测
+     路径: GET /api/v1/security/threats  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'limit', 'offset']
+  ❌ 安全-国密算法
+     路径: GET /api/v1/security/gmssl  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 安全-零知识证明
+     路径: GET /api/v1/security/zkp  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 安全-增强审计
+     路径: GET /api/v1/security/audit  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 安全-HSM模块
+     路径: GET /api/v1/security/hsm  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 安全-安全等级
+     路径: GET /api/v1/security/levels  状态码: 200  API代码: 0
+     数据: list[4]
+  ❌ 安全-APT检测
+     路径: GET /api/v1/security/apt  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 安全-BBS+签名
+     路径: GET /api/v1/security/bbs  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ❌ 安全-ABAC策略
+     路径: GET /api/v1/security/abac  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+
+--- 系统 (2/3 通过) ---
+  ✅ 系统-通知公告
+     路径: GET /api/v1/notifications  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'unread_count']
+  ❌ 系统-系统配置
+     路径: GET /api/v1/system/config  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 系统-操作日志
+     路径: GET /api/v1/audit-logs  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size']
+
+--- 业务 (7/10 通过) ---
+  ❌ 业务-机构管理
+     路径: GET /api/v1/organizations  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 业务-连接器管理
+     路径: GET /api/v1/connector-manage  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 业务-数据目录管理
+     路径: GET /api/v1/catalog-manage  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 业务-数据订阅
+     路径: GET /api/v1/data-subscriptions  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 业务-数据产品管理
+     路径: GET /api/v1/product-manage  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 业务-产品市场
+     路径: GET /api/v1/product-market  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+  ✅ 业务-需求管理
+     路径: GET /api/v1/demand-manage  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 业务-合约管理
+     路径: GET /api/v1/contracts  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ✅ 业务-审批工作流
+     路径: GET /api/v1/workflows  状态码: 200  API代码: 0
+     数据: dict['items', 'total', 'page', 'page_size', 'total_pages']
+  ❌ 业务-Agent管理
+     路径: GET /api/v1/agents  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+
+--- 门户 (0/1 通过) ---
+  ❌ 门户-统一门户
+     路径: GET /api/v1/portal  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+
+--- LLM (0/1 通过) ---
+  ❌ LLM-大模型
+     路径: GET /api/v1/llm  状态码: 404  API代码: N/A
+     消息: N/A  数据: null
+

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import User, Organization
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.auth import TokenResponse as SchemaTokenResponse
-from app.utils.security import hash_password, verify_password, create_access_token
+from app.core.security import hash_password, verify_password, create_access_token
 
 
 def register_user(db: Session, user_in: UserCreate) -> User:
@@ -91,7 +91,11 @@ def create_user_token(user: User) -> SchemaTokenResponse:
     Create JWT access token for user.
     Returns TokenResponse with access token and user info.
     """
-    access_token = create_access_token(data={"sub": str(user.id)})
+    access_token = create_access_token(
+        subject=str(user.id),
+        username=user.username,
+        role=user.role,
+    )
 
     user_response = UserResponse.model_validate(user)
 

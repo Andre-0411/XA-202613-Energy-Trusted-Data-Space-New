@@ -11,12 +11,15 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { triggerSettlement, getSettlementDetail, disputeSettlement } from '@/api/blockchain';
 import type { Settlement } from '@/types/api';
+import PageContainer, { PageSection } from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
 import StatusTag from '@/components/StatusTag';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import StatCard from '@/components/common/StatCard';
 import ChartCard from '@/components/common/ChartCard';
+import DataTable from '@/components/common/DataTable';
+import type { Column } from '@/components/common/DataTable';
 
 const settlementStatusLabel = (s: string): string => {
   const m: Record<string, string> = { PENDING: '待处理', COMPLETED: '已完成', FAILED: '失败', DISPUTED: '争议中' };
@@ -162,8 +165,48 @@ const BcSettlementPage: React.FC = () => {
   // ===== 分页计算 =====
   const pagedItems = useMemo(() => items.slice(page * pageSize, (page + 1) * pageSize), [items, page, pageSize]);
 
+  // ===== 表格列定义 =====
+  const columns: Column<Settlement>[] = useMemo(() => [
+    { id: 'from_org', label: '发起方', minWidth: 120 },
+    { id: 'to_org', label: '接收方', minWidth: 120 },
+    { id: 'amount', label: '金额', minWidth: 100, render: (row) => <span className="font-semibold">¥{row.amount.toFixed(2)}</span> },
+    { id: 'asset_id', label: '关联资产', minWidth: 120 },
+    {
+      id: 'tx_hash', label: '交易哈希', minWidth: 160,
+      render: (row) => row.tx_hash ? (
+        <Tooltip content={row.tx_hash}>
+          <span className="font-mono text-xs truncate inline-block max-w-[140px]">{(row.tx_hash ?? '').slice(0, 14)}...</span>
+        </Tooltip>
+      ) : '—',
+    },
+    {
+      id: 'status', label: '状态', minWidth: 100,
+      render: (row) => <StatusTag status={settlementStatusLabel(row.status)} color={settlementStatusColor(row.status)} />,
+    },
+    { id: 'created_at', label: '创建时间', minWidth: 160, render: (row) => new Date(row.created_at).toLocaleString('zh-CN') },
+    {
+      id: 'actions', label: '操作', minWidth: 120, align: 'center',
+      render: (row) => (
+        <div className="flex items-center justify-center gap-1">
+          <Tooltip content="查看详情">
+            <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-blue-500" onClick={() => detailMut.mutate(row.id)}>
+              <BrowseIcon size={16} />
+            </span>
+          </Tooltip>
+          {row.status === 'PENDING' && (
+            <Tooltip content="争议处理">
+              <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-orange-500" onClick={() => { setDisputeId(row.id); setDisputeOpen(true); }}>
+                <LinkIcon size={16} />
+              </span>
+            </Tooltip>
+          )}
+        </div>
+      ),
+    },
+  ], []);
+
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="结算管理"
         subtitle="管理链上结算记录，支持发起结算与争议处理"
@@ -189,98 +232,18 @@ const BcSettlementPage: React.FC = () => {
       </div>
 
       {/* 数据表格 */}
-      <div className="rounded-xl bg-white border border-gray-200 flex flex-col flex-1 overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold">发起方</th>
-                <th className="px-4 py-3 text-left font-semibold">接收方</th>
-                <th className="px-4 py-3 text-left font-semibold">金额</th>
-                <th className="px-4 py-3 text-left font-semibold">关联资产</th>
-                <th className="px-4 py-3 text-left font-semibold">交易哈希</th>
-                <th className="px-4 py-3 text-left font-semibold">状态</th>
-                <th className="px-4 py-3 text-left font-semibold">创建时间</th>
-                <th className="px-4 py-3 text-center font-semibold w-40">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {pagedItems.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">{row.from_org}</td>
-                  <td className="px-4 py-3">{row.to_org}</td>
-                  <td className="px-4 py-3 font-semibold">¥{row.amount.toFixed(2)}</td>
-                  <td className="px-4 py-3">{row.asset_id}</td>
-                  <td className="px-4 py-3">
-                    {row.tx_hash ? (
-                      <Tooltip content={row.tx_hash}>
-                        <span className="font-mono text-xs truncate inline-block max-w-[140px]">
-                          {row.tx_hash.slice(0, 14)}...
-                        </span>
-                      </Tooltip>
-                    ) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusTag status={settlementStatusLabel(row.status)} color={settlementStatusColor(row.status)} />
-                  </td>
-                  <td className="px-4 py-3">{new Date(row.created_at).toLocaleString('zh-CN')}</td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Tooltip content="查看详情">
-                        <span
-                          className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-blue-500"
-                          onClick={() => detailMut.mutate(row.id)}
-                        >
-                          <BrowseIcon size={16} />
-                        </span>
-                      </Tooltip>
-                      {row.status === 'PENDING' && (
-                        <Tooltip content="争议处理">
-                          <span
-                            className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-orange-500"
-                            onClick={() => { setDisputeId(row.id); setDisputeOpen(true); }}
-                          >
-                            <LinkIcon size={16} />
-                          </span>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {pagedItems.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400">暂无数据</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {/* 分页 */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
-          <span className="text-sm text-gray-500">共 {total} 条</span>
-          <div className="flex items-center gap-2">
-            <select
-              className="border border-gray-300 rounded px-2 py-1 text-sm"
-              value={pageSize}
-              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
-            >
-              {[10, 20, 50].map((n) => <option key={n} value={n}>{n} 条/页</option>)}
-            </select>
-            <button
-              className="px-2 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
-              disabled={page === 0}
-              onClick={() => setPage((p) => p - 1)}
-            >上一页</button>
-            <span className="text-sm text-gray-600">{page + 1} / {Math.max(1, Math.ceil(total / pageSize))}</span>
-            <button
-              className="px-2 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
-              disabled={(page + 1) * pageSize >= total}
-              onClick={() => setPage((p) => p + 1)}
-            >下一页</button>
-          </div>
-        </div>
-      </div>
+      <PageSection padding="none">
+        <DataTable
+          columns={columns}
+          rows={pagedItems}
+          loading={false}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPageSize(size); setPage(0); }}
+        />
+      </PageSection>
 
       {/* 发起结算弹窗 */}
       <Dialog
@@ -402,7 +365,7 @@ const BcSettlementPage: React.FC = () => {
       </Dialog>
 
       <LoadingOverlay open={settleMut.isPending || detailMut.isPending || disputeMut.isPending} />
-    </div>
+    </PageContainer>
   );
 };
 

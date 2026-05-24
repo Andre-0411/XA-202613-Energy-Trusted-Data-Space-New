@@ -11,11 +11,14 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listNfts, mintNft, getNftDetail, transferNft } from '@/api/blockchain';
 import type { NftAsset } from '@/types/api';
+import PageContainer, { PageSection } from '@/components/common/PageContainer';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem, PageAction } from '@/components/PageHeader';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import StatCard from '@/components/common/StatCard';
 import ChartCard from '@/components/common/ChartCard';
+import DataTable from '@/components/common/DataTable';
+import type { Column } from '@/components/common/DataTable';
 import FilterBar from '@/components/common/FilterBar';
 import type { FilterField } from '@/components/common/FilterBar';
 
@@ -161,10 +164,59 @@ const BcAssetsPage: React.FC = () => {
 
   const handleFilterReset = () => { setFilterOwner(''); setFilterAssetId(''); setPage(0); };
 
-  const totalPages = Math.ceil(total / pageSize);
+  // ===== 表格列定义 =====
+  const columns: Column<NftAsset>[] = useMemo(() => [
+    {
+      id: 'token_id', label: 'Token ID', minWidth: 140,
+      render: (row) => <Tag variant="outline">{(row.token_id ?? '').slice(0, 12) + '...'}</Tag>,
+    },
+    {
+      id: 'asset_id', label: '关联资产', minWidth: 140,
+      render: (row) => <span className="text-xs text-gray-600 max-w-[140px] truncate inline-block">{row.asset_id ?? '—'}</span>,
+    },
+    {
+      id: 'owner', label: '所有者', minWidth: 180,
+      render: (row) => <span className="text-xs text-gray-600 font-mono max-w-[160px] truncate inline-block">{row.owner ?? '—'}</span>,
+    },
+    {
+      id: 'metadata_uri', label: 'Metadata URI', minWidth: 180,
+      render: (row) => <span className="text-xs text-gray-600 max-w-[160px] truncate inline-block">{row.metadata_uri ?? '—'}</span>,
+    },
+    {
+      id: 'tx_hash', label: '交易哈希', minWidth: 140,
+      render: (row) => (
+        <Tooltip content={row.tx_hash ?? ''}>
+          <Tag variant="outline" theme="primary">
+            {(row.tx_hash?.slice(0, 10) ?? '—') + (row.tx_hash ? '...' : '')}
+          </Tag>
+        </Tooltip>
+      ),
+    },
+    {
+      id: 'created_at', label: '创建时间', minWidth: 160,
+      render: (row) => new Date(row.created_at).toLocaleString('zh-CN'),
+    },
+    {
+      id: 'actions', label: '操作', minWidth: 140, align: 'center',
+      render: (row) => (
+        <div className="flex items-center justify-center gap-1">
+          <Tooltip content="查看详情">
+            <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center" onClick={() => detailMut.mutate(row.token_id)}>
+              <BrowseIcon />
+            </span>
+          </Tooltip>
+          <Tooltip content="转让">
+            <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-blue-500" onClick={() => { setTransferTarget(row); setTransferOpen(true); }}>
+              <LinkIcon />
+            </span>
+          </Tooltip>
+        </div>
+      ),
+    },
+  ], []);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <PageContainer>
       <PageHeader
         title="NFT 资产管理"
         subtitle="管理链上 NFT 资产，支持铸造、转让与详情查看"
@@ -202,84 +254,18 @@ const BcAssetsPage: React.FC = () => {
       />
 
       {/* 数据表格 */}
-      <div className="rounded-xl bg-white border border-gray-200 flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 z-10">
-              <tr className="border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-bold text-gray-600">Token ID</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">关联资产</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">所有者</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">Metadata URI</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">交易哈希</th>
-                <th className="text-left px-4 py-3 font-bold text-gray-600">创建时间</th>
-                <th className="text-center px-4 py-3 font-bold text-gray-600 w-[140px]">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((row) => (
-                <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Tag variant="outline">{row.token_id.slice(0, 12) + '...'}</Tag>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-gray-600 max-w-[140px] truncate inline-block">{row.asset_id}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-gray-600 font-mono max-w-[160px] truncate inline-block">{row.owner}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-gray-600 max-w-[160px] truncate inline-block">{row.metadata_uri ?? '—'}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Tooltip content={row.tx_hash ?? ''}>
-                      <Tag variant="outline" theme="primary">
-                        {(row.tx_hash?.slice(0, 10) ?? '—') + (row.tx_hash ? '...' : '')}
-                      </Tag>
-                    </Tooltip>
-                  </td>
-                  <td className="px-4 py-3">{new Date(row.created_at).toLocaleString('zh-CN')}</td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Tooltip content="查看详情">
-                        <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center" onClick={() => detailMut.mutate(row.token_id)}>
-                          <BrowseIcon />
-                        </span>
-                      </Tooltip>
-                      <Tooltip content="转让">
-                        <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-blue-500" onClick={() => { setTransferTarget(row); setTransferOpen(true); }}>
-                          <LinkIcon />
-                        </span>
-                      </Tooltip>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400">暂无数据</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {/* 分页 */}
-        <div className="flex items-center justify-end px-4 py-3 border-t border-gray-200 gap-4">
-          <span className="text-xs text-gray-500">每页行数</span>
-          <select
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-            value={pageSize}
-            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
-          >
-            {[10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-          <span className="text-xs text-gray-500">{`${page * pageSize + 1}-${Math.min((page + 1) * pageSize, total)} / ${total}`}</span>
-          <div className="flex gap-1">
-            <button className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-50" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>上一页</button>
-            <button className="px-2 py-1 text-sm border border-gray-300 rounded disabled:opacity-50" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>下一页</button>
-          </div>
-        </div>
-      </div>
+      <PageSection padding="none">
+        <DataTable
+          columns={columns}
+          rows={items}
+          loading={isLoading}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPageSize(size); setPage(0); }}
+        />
+      </PageSection>
 
       {/* 铸造 NFT 弹窗 */}
       <Dialog visible={mintOpen} onClose={() => setMintOpen(false)} header="铸造 NFT" width="480px" footer={
@@ -359,7 +345,7 @@ const BcAssetsPage: React.FC = () => {
       </Dialog>
 
       <LoadingOverlay open={isLoading} />
-    </div>
+    </PageContainer>
   );
 };
 
