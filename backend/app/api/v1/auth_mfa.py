@@ -13,6 +13,7 @@ from app.schemas.mfa import (
     MfaBackupCodesResponse,
 )
 from app.services import mfa_service
+from app.utils.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ router = APIRouter()
 
 
 @router.post("/mfa/setup", response_model=MfaSetupResponse, summary="MFA 设置")
-async def setup_mfa(request: MfaSetupRequest):
+async def setup_mfa(request: MfaSetupRequest, user: dict = Depends(get_current_user)):
     """
     设置 MFA
 
@@ -42,7 +43,7 @@ async def setup_mfa(request: MfaSetupRequest):
 
 
 @router.post("/mfa/enable", summary="启用 MFA")
-async def enable_mfa(request: MfaEnableRequest):
+async def enable_mfa(request: MfaEnableRequest, user: dict = Depends(get_current_user)):
     """
     启用 MFA（需要提供有效验证码确认）
     """
@@ -56,7 +57,7 @@ async def enable_mfa(request: MfaEnableRequest):
 
 
 @router.post("/mfa/disable", summary="禁用 MFA")
-async def disable_mfa(request: MfaDisableRequest):
+async def disable_mfa(request: MfaDisableRequest, user: dict = Depends(get_current_user)):
     """
     禁用 MFA
     """
@@ -71,7 +72,7 @@ async def disable_mfa(request: MfaDisableRequest):
 
 
 @router.get("/mfa/status/{user_id}", response_model=MfaStatusResponse, summary="获取 MFA 状态")
-async def get_mfa_status(user_id: str):
+async def get_mfa_status(user_id: str, user: dict = Depends(get_current_user)):
     """
     获取用户的 MFA 状态
     """
@@ -79,7 +80,7 @@ async def get_mfa_status(user_id: str):
 
 
 @router.post("/mfa/backup-codes/verify", response_model=MfaVerifyResponse, summary="备份码验证")
-async def verify_backup_code(request: BackupCodeVerifyRequest):
+async def verify_backup_code(request: BackupCodeVerifyRequest, user: dict = Depends(get_current_user)):
     """
     使用备份码验证
     """

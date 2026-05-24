@@ -37,6 +37,7 @@ const ComputeAgentsPage = lazy(() => import('@/pages/compute/ComputeAgentsPage')
 const ComputeBenchmarkPage = lazy(() => import('@/pages/compute/ComputeBenchmarkPage'));
 const ComputeClusterPage = lazy(() => import('@/pages/compute/ComputeClusterPage'));
 const PrivacyComputePage = lazy(() => import('@/pages/compute/PrivacyComputePage'));
+const DataSandboxPage = lazy(() => import('@/pages/compute/DataSandboxPage'));
 
 /* ========== 区块链中心 ========== */
 const BcAssetsPage = lazy(() => import('@/pages/blockchain/BcAssetsPage'));
@@ -72,9 +73,17 @@ const SecurityCryptoPage = lazy(() => import('@/pages/security/SecurityCryptoPag
 const SecurityZkpPage = lazy(() => import('@/pages/security/SecurityZkpPage'));
 const SecurityLevelsPage = lazy(() => import('@/pages/security/SecurityLevelsPage'));
 
+/* ========== 业务场景 ========== */
+const PowerDispatchPage = lazy(() => import('@/pages/portal/PowerDispatchPage'));
+const RenewableEnergyPage = lazy(() => import('@/pages/portal/RenewableEnergyPage'));
+const VirtualPowerPlantPage = lazy(() => import('@/pages/portal/VirtualPowerPlantPage'));
+const PowerTradingPage = lazy(() => import('@/pages/portal/PowerTradingPage'));
+
 /* ========== 门户功能 ========== */
 const AnnouncementsPage = lazy(() => import('@/pages/portal/AnnouncementsPage'));
 const PortalProfilePage = lazy(() => import('@/pages/portal/PortalProfilePage'));
+const AgentChatPage = lazy(() => import('@/pages/portal/AgentChatPage'));
+const OrgCertificationPage = lazy(() => import('@/pages/portal/OrgCertificationPage'));
 
 /* ========== 可信数据空间 - 机构管理 ========== */
 const OrganizationsPage = lazy(() => import('@/pages/tds/OrganizationsPage'));
@@ -174,6 +183,7 @@ export const routes: RouteObject[] = [
           { path: 'compute/benchmark', element: <LazyLoad><ComputeBenchmarkPage /></LazyLoad> },
           { path: 'compute/cluster', element: <LazyLoad><ComputeClusterPage /></LazyLoad> },
           { path: 'compute/privacy', element: <LazyLoad><PrivacyComputePage /></LazyLoad> },
+          { path: 'compute/data-sandbox', element: <LazyLoad><DataSandboxPage /></LazyLoad> },
           /* ---- 区块链中心 ---- */
           { path: 'blockchain/assets', element: <LazyLoad><BcAssetsPage /></LazyLoad> },
           { path: 'blockchain/evidence', element: <LazyLoad><BcEvidencePage /></LazyLoad> },
@@ -201,9 +211,21 @@ export const routes: RouteObject[] = [
           { path: 'security/crypto', element: <LazyLoad><SecurityCryptoPage /></LazyLoad> },
           { path: 'security/zkp', element: <LazyLoad><SecurityZkpPage /></LazyLoad> },
           { path: 'security/levels', element: <LazyLoad><SecurityLevelsPage /></LazyLoad> },
+          /* ---- 业务场景 ---- */
+          { path: 'scenario/power-dispatch', element: <LazyLoad><PowerDispatchPage /></LazyLoad> },
+          { path: 'scenario/renewable-energy', element: <LazyLoad><RenewableEnergyPage /></LazyLoad> },
+          { path: 'scenario/virtual-power-plant', element: <LazyLoad><VirtualPowerPlantPage /></LazyLoad> },
+          { path: 'scenario/power-trading', element: <LazyLoad><PowerTradingPage /></LazyLoad> },
           /* ---- 门户功能 ---- */
           { path: 'portal/announcements', element: <LazyLoad><AnnouncementsPage /></LazyLoad> },
           { path: 'portal/profile', element: <LazyLoad><PortalProfilePage /></LazyLoad> },
+          { path: 'portal/agent-chat', element: <LazyLoad><AgentChatPage /></LazyLoad> },
+          { path: 'portal/org-certification', element: <LazyLoad><OrgCertificationPage /></LazyLoad> },
+          /* ---- 业务场景 ---- */
+          { path: 'scene/power-dispatch', element: <LazyLoad><PowerDispatchPage /></LazyLoad> },
+          { path: 'scene/renewable-energy', element: <LazyLoad><RenewableEnergyPage /></LazyLoad> },
+          { path: 'scene/virtual-power-plant', element: <LazyLoad><VirtualPowerPlantPage /></LazyLoad> },
+          { path: 'scene/power-trading', element: <LazyLoad><PowerTradingPage /></LazyLoad> },
           /* ---- 可信数据空间 - 机构管理 ---- */
           { path: 'tds/organizations', element: <LazyLoad><OrganizationsPage /></LazyLoad> },
           { path: 'tds/organizations/:id', element: <LazyLoad><OrganizationDetailPage /></LazyLoad> },

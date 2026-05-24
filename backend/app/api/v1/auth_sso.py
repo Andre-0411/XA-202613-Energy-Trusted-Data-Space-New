@@ -5,7 +5,7 @@ OAuth2.0/OIDC/SAML2.0 授权、Token 交换、用户信息
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 
 from app.schemas.sso import (
     SSOProviderConfig, SSOAuthorizeRequest, SSOAuthorizeResponse,
@@ -13,6 +13,7 @@ from app.schemas.sso import (
     SAMLAssertionRequest, SAMLAssertionResponse,
     SSOSessionInfo,
 )
+from app.utils.deps import get_current_user, require_roles
 from app.services import sso_service
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ async def get_provider(provider_id: str):
 
 
 @router.post("/sso/providers", summary="添加 SSO 提供者")
-async def add_provider(config: SSOProviderConfig):
+async def add_provider(config: SSOProviderConfig, user: dict = Depends(require_roles("admin"))):
     """
     添加 SSO 提供者
     """
@@ -50,7 +51,7 @@ async def add_provider(config: SSOProviderConfig):
 
 
 @router.delete("/sso/providers/{provider_id}", summary="删除 SSO 提供者")
-async def remove_provider(provider_id: str):
+async def remove_provider(provider_id: str, user: dict = Depends(require_roles("admin"))):
     """
     删除 SSO 提供者
     """

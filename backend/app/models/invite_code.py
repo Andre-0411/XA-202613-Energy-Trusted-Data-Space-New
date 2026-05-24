@@ -60,6 +60,23 @@ class OrganizationCertification(Base, UUIDMixin):
     iso_cert_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     social_credit_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    # 一级审核（机构管理员初审）
+    first_reviewer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True,
+    )
+    first_review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    first_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+    # 二级审核（平台运营方终审）
+    second_reviewer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True,
+    )
+    second_review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    second_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+    # 兼容字段
     reviewer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True,
     )

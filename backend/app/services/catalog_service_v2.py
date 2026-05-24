@@ -102,24 +102,94 @@ async def review_catalog_entry(
     reviewer_id: str,
     status: str,
     review_comment: Optional[str] = None,
+    review_level: Optional[int] = None,
 ) -> dict:
-    """审核目录条目"""
+    """
+    审核目录条目（两级审核流程）
+
+    审核规则（基于南方电网数据资源管理指引）：
+    - 公开资源（visibility=public）：需要两级审核
+      - 一级审核：机构管理员初审（pending → first_approved）
+      - 二级审核：平台运营方终审（first_approved → approved）
+    - 私有资源（visibility=private/restricted）：仅需一级审核
+      - 机构管理员审核（pending → approved）
+
+    Args:
+        catalog_id: 目录 ID
+        reviewer_id: 审核人 ID
+        status: 审核结果 (approved/rejected)
+        review_comment: 审核意见
+        review_level: 审核级别（可选，自动根据 visibility 推断）
+    """
     result = await db.execute(
         select(CatalogRegistration).where(CatalogRegistration.id == uuid.UUID(catalog_id))
     )
     catalog = result.scalar_one_or_none()
     if not catalog:
         raise DataNotFoundError("目录条目不存在")
-    if catalog.status != "pending":
-        raise DataValidationError(f"目录状态不为待审批: {catalog.status}")
 
-    catalog.status = status
-    if status == "approved":
-        catalog.approved_by = uuid.UUID(reviewer_id)
-        catalog.approved_at = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    visibility = catalog.visibility
+
+    # 自动推断审核级别
+    if review_level is None:
+        if visibility == "public":
+            # 公开资源需要两级审核
+            if catalog.status == "pending":
+                review_level = 1
+            elif catalog.status == "first_approved":
+                review_level = 2
+            else:
+                raise DataValidationError(f"目录状态不支持审核: {catalog.status}")
+        else:
+            # 私有资源仅需一级审核
+            review_level = 1
+
+    if review_level == 1:
+        # 一级审核（机构管理员初审）
+        if catalog.status != "pending":
+            raise DataValidationError(f"目录状态不为待审批: {catalog.status}")
+
+        if visibility == "public":
+            # 公开资源：初审通过后进入二级审核
+            if status == "approved":
+                catalog.status = "first_approved"
+                catalog.first_reviewer_id = uuid.UUID(reviewer_id)
+                catalog.first_review_comment = review_comment
+                catalog.first_reviewed_at = now
+                logger.info(f"Catalog {catalog_id} first approved for public resource by {reviewer_id}")
+            else:
+                catalog.status = "rejected"
+                catalog.first_reviewer_id = uuid.UUID(reviewer_id)
+                catalog.first_review_comment = review_comment
+                catalog.first_reviewed_at = now
+                logger.info(f"Catalog {catalog_id} rejected at first review by {reviewer_id}")
+        else:
+            # 私有资源：一级审核即终审
+            catalog.status = status
+            catalog.first_reviewer_id = uuid.UUID(reviewer_id)
+            catalog.first_review_comment = review_comment
+            catalog.first_reviewed_at = now
+            logger.info(f"Catalog {catalog_id} reviewed (private): {status} by {reviewer_id}")
+
+    elif review_level == 2:
+        # 二级审核（平台运营方终审，仅公开资源）
+        if visibility != "public":
+            raise DataValidationError("私有资源不需要二级审核")
+
+        if catalog.status != "first_approved":
+            raise DataValidationError(f"目录未通过一级审核，当前状态: {catalog.status}")
+
+        catalog.status = status
+        catalog.second_reviewer_id = uuid.UUID(reviewer_id)
+        catalog.second_review_comment = review_comment
+        catalog.second_reviewed_at = now
+        logger.info(f"Catalog {catalog_id} second reviewed: {status} by platform ops {reviewer_id}")
+
+    else:
+        raise DataValidationError(f"无效的审核级别: {review_level}")
 
     await db.commit()
-    logger.info(f"Catalog entry {catalog_id} reviewed: {status}")
     return _catalog_to_dict(catalog)
 
 
@@ -210,7 +280,7 @@ def _catalog_to_dict(catalog: CatalogRegistration) -> dict:
     """目录条目转字典"""
     return {
         "id": str(catalog.id),
-        "connector_id": str(catalog.connector_id),
+        "connector_id": str(catalog.connector_id) if catalog.connector_id else None,
         "data_name": catalog.data_name,
         "data_type": catalog.data_type,
         "description": catalog.description,
@@ -229,6 +299,14 @@ def _catalog_to_dict(catalog: CatalogRegistration) -> dict:
         "registered_by": str(catalog.registered_by),
         "approved_by": str(catalog.approved_by) if catalog.approved_by else None,
         "approved_at": catalog.approved_at.isoformat() if catalog.approved_at else None,
+        # 一级审核信息
+        "first_reviewer_id": str(catalog.first_reviewer_id) if catalog.first_reviewer_id else None,
+        "first_review_comment": catalog.first_review_comment,
+        "first_reviewed_at": catalog.first_reviewed_at.isoformat() if catalog.first_reviewed_at else None,
+        # 二级审核信息
+        "second_reviewer_id": str(catalog.second_reviewer_id) if catalog.second_reviewer_id else None,
+        "second_review_comment": catalog.second_review_comment,
+        "second_reviewed_at": catalog.second_reviewed_at.isoformat() if catalog.second_reviewed_at else None,
         "status": catalog.status,
         "created_at": catalog.created_at.isoformat(),
         "updated_at": catalog.updated_at.isoformat(),

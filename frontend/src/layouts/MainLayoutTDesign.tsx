@@ -41,6 +41,7 @@ const PATH_LABEL_MAP: Record<string, string> = {
   '/dashboard/compute/benchmark': '性能基准',
   '/dashboard/compute/cluster': '计算集群',
   '/dashboard/compute/privacy': '隐私计算',
+  '/dashboard/compute/data-sandbox': '数据沙箱',
   '/dashboard/blockchain/assets': '链上资产',
   '/dashboard/blockchain/evidence': '存证管理',
   '/dashboard/blockchain/contracts': '智能合约',
@@ -79,6 +80,14 @@ const PATH_LABEL_MAP: Record<string, string> = {
   '/dashboard/tds/files': '连接器文件库',
   '/dashboard/tds/workflows': '审批工作流',
   '/dashboard/tds/approvals': '审批记录',
+  '/dashboard/scene/power-dispatch': '电网调度优化',
+  '/dashboard/scene/renewable-energy': '新能源消纳管理',
+  '/dashboard/scene/virtual-power-plant': '虚拟电厂运营',
+  '/dashboard/scene/power-trading': '电力市场交易',
+  '/dashboard/scenario/power-dispatch': '电网调度优化',
+  '/dashboard/scenario/renewable-energy': '新能源消纳管理',
+  '/dashboard/scenario/virtual-power-plant': '虚拟电厂运营',
+  '/dashboard/scenario/power-trading': '电力市场交易',
   '/monitor-screen': '监管大屏',
 };
 

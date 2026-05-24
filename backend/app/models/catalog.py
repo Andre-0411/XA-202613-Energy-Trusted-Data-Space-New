@@ -44,6 +44,22 @@ class CatalogRegistration(Base, UUIDMixin):
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True,
     )
+    # 一级审核（机构管理员初审）
+    first_reviewer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True,
+    )
+    first_review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    first_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+    # 二级审核（平台运营方终审，仅公开资源需要）
+    second_reviewer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True,
+    )
+    second_review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    second_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False,
     )

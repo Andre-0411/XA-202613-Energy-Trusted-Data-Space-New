@@ -355,3 +355,347 @@ async def get_tee_status(db: AsyncSession, instance_id: str) -> dict:
         "created_at": instance.created_at.isoformat() if instance.created_at else None,
         "encryption_engine": "SM4-GCM + AES-256-GCM (real cryptography)",
     }
+
+
+class SGXEnclaveSimulator:
+    """
+    Intel SGX 飞地模拟器
+
+    模拟 SGX 飞地的安全执行环境：
+    - 隔离的内存空间（通过 AES-GCM 加密模拟）
+    - 完整的密封存储（Sealing）
+    - 远程证明（通过 SM3 哈希链模拟 MRENCLAVE）
+    - Python 代码在飞地内安全执行
+
+    注：在真实环境中，需要 Intel SGX SDK + Gramine LibOS
+    """
+
+    def __init__(self, enclave_id: str, memory_size_mb: int = 512):
+        self.enclave_id = enclave_id
+        self.memory_size_mb = memory_size_mb
+        self.measurement = ""  # MRENCLAVE
+        self.signing_key = sm4_generate_key()
+        self.is_initialized = False
+        self.execution_log: list[dict] = []
+        self._sealed_data: dict[str, bytes] = {}
+
+    def initialize(self) -> dict:
+        """初始化飞地（模拟 ECREATE）"""
+        # 计算飞地度量值（MRENCLAVE）
+        measurement_data = f"{self.enclave_id}|{self.memory_size_mb}|{datetime.now(timezone.utc).isoformat()}"
+        self.measurement = sm3_engine.hash(measurement_data.encode('utf-8'))
+        self.is_initialized = True
+
+        self._log_event("enclave_created", {
+            "memory_size_mb": self.memory_size_mb,
+            "measurement": self.measurement,
+        })
+
+        return {
+            "enclave_id": self.enclave_id,
+            "status": "initialized",
+            "measurement": self.measurement,
+            "memory_size_mb": self.memory_size_mb,
+        }
+
+    def execute_code(self, code: str, input_data: dict) -> dict:
+        """
+        在飞地内安全执行 Python 代码
+
+        模拟 SGX 飞地内的代码执行：
+        1. 代码和输入在加密内存中处理
+        2. 执行结果通过密封存储保护
+        3. 完整性通过哈希链验证
+
+        Args:
+            code: Python 代码字符串
+            input_data: 输入数据字典
+
+        Returns:
+            执行结果
+        """
+        if not self.is_initialized:
+            raise ComputeError("飞地未初始化，请先调用 initialize()")
+
+        start_time = time.time()
+
+        # 密封输入数据
+        input_bytes = json.dumps(input_data).encode('utf-8')
+        input_hash = sm3_engine.hash(input_bytes)
+        sealed_input = SealedStorage.seal(input_bytes, f"enclave:{self.enclave_id}:input")
+
+        # 在飞地内执行（模拟）
+        # 创建受限的执行环境
+        enclave_globals = {"__builtins__": {
+            "range": range, "len": len, "int": int, "float": float,
+            "str": str, "list": list, "dict": dict, "tuple": tuple,
+            "min": min, "max": max, "sum": sum, "abs": abs,
+            "round": round, "sorted": sorted, "enumerate": enumerate,
+            "zip": zip, "map": map, "filter": filter,
+            "True": True, "False": False, "None": None,
+            "print": lambda *args: None,  # 静默 print
+        }}
+        enclave_locals = {"input_data": input_data}
+
+        try:
+            exec(code, enclave_globals, enclave_locals)
+            output_data = {k: v for k, v in enclave_locals.items() if k != "input_data"}
+            status = "success"
+            error_msg = None
+        except Exception as e:
+            output_data = {}
+            status = "error"
+            error_msg = str(e)
+
+        exec_time = (time.time() - start_time) * 1000
+
+        # 密封输出数据
+        output_bytes = json.dumps(output_data).encode('utf-8')
+        output_hash = sm3_engine.hash(output_bytes)
+        sealed_output = SealedStorage.seal(output_bytes, f"enclave:{self.enclave_id}:output")
+
+        # 加密结果
+        nonce = ResultEncryptor.generate_nonce()
+        encrypted_result = ResultEncryptor.encrypt(
+            self.signing_key, nonce, output_bytes,
+            aad=input_hash.encode()
+        )
+
+        self._log_event("code_executed", {
+            "input_hash": input_hash,
+            "output_hash": output_hash,
+            "exec_time_ms": exec_time,
+            "status": status,
+        })
+
+        return {
+            "enclave_id": self.enclave_id,
+            "status": status,
+            "error": error_msg,
+            "encrypted_result": encrypted_result,
+            "input_hash": input_hash,
+            "output_hash": output_hash,
+            "execution_time_ms": round(exec_time, 2),
+            "measurement": self.measurement,
+        }
+
+    def seal_data(self, key: str, data: bytes) -> dict:
+        """密封数据到飞地存储"""
+        sealed = SealedStorage.seal(data, f"enclave:{self.enclave_id}:seal:{key}")
+        self._sealed_data[key] = data
+        return sealed
+
+    def get_attestation_report(self) -> dict:
+        """获取飞地证明报告（模拟 EPID/DCAP 远程证明）"""
+        return {
+            "enclave_id": self.enclave_id,
+            "measurement": self.measurement,
+            "signing_key_hash": sm3_engine.hash(self.signing_key.hex().encode()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "SGX_SIMULATION_v1",
+            "tcbsvn": "01000000000000000000000000000000",
+            "mr_enclave": self.measurement,
+            "mr_signer": sm3_engine.hash(self.signing_key),
+            "is_debug": True,  # 模拟模式
+        }
+
+    def _log_event(self, event_type: str, details: dict) -> None:
+        self.execution_log.append({
+            "event": event_type,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "details": details,
+        })
+
+
+async def execute_python_in_sgx_enclave(
+    db: AsyncSession,
+    user_id: str,
+    organization_id: str,
+    python_code: str,
+    input_data: dict,
+    memory_size_mb: int = 512,
+    name: str = "SGX Python 执行",
+) -> dict:
+    """
+    在 SGX 飞地中安全执行 Python 代码
+
+    模拟 Intel SGX + Gramine 环境下的 Python 应用执行。
+
+    Args:
+        db: 数据库会话
+        user_id: 用户 ID
+        organization_id: 组织 ID
+        python_code: Python 代码
+        input_data: 输入数据
+        memory_size_mb: 飞地内存大小
+        name: 任务名称
+
+    Returns:
+        执行结果
+    """
+    enclave_id = str(uuid.uuid4())
+    enclave = SGXEnclaveSimulator(enclave_id, memory_size_mb)
+    enclave.initialize()
+
+    # 执行代码
+    result = enclave.execute_code(python_code, input_data)
+
+    # 获取证明报告
+    attestation = enclave.get_attestation_report()
+
+    # 存储到数据库
+    instance = TeeInstance(
+        instance_id=enclave_id,
+        tee_type="sgx",
+        status=result["status"],
+        measurement=enclave.measurement,
+        config={
+            "execution_type": "python_in_enclave",
+            "memory_size_mb": memory_size_mb,
+            "input_hash": result["input_hash"],
+            "output_hash": result["output_hash"],
+            "execution_time_ms": result["execution_time_ms"],
+        },
+        created_by=uuid.UUID(user_id) if user_id else uuid.uuid4(),
+        organization_id=uuid.UUID(organization_id) if organization_id else uuid.uuid4(),
+    )
+    db.add(instance)
+
+    task = ComputeTask(
+        name=name, task_type="TEE", scenario="sgx_python_execution",
+        config={
+            "enclave_id": enclave_id,
+            "execution_time_ms": result["execution_time_ms"],
+            "measurement": enclave.measurement,
+        },
+        input_asset_ids=[], status="completed" if result["status"] == "success" else "failed",
+        created_by=uuid.UUID(user_id) if user_id else uuid.uuid4(),
+        organization_id=uuid.UUID(organization_id) if organization_id else uuid.uuid4(),
+    )
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    _audit_log("sgx_python_execution", enclave_id, {
+        "status": result["status"],
+        "exec_time_ms": result["execution_time_ms"],
+    })
+
+    return {
+        "task_id": str(task.id),
+        "enclave_id": enclave_id,
+        "status": result["status"],
+        "error": result.get("error"),
+        "execution_time_ms": result["execution_time_ms"],
+        "measurement": enclave.measurement,
+        "attestation_report": attestation,
+        "encryption": "SM4-GCM + AES-256-GCM",
+    }
+
+
+async def run_tee_performance_benchmark() -> dict:
+    """
+    TEE 性能基准测试
+
+    测试各项 TEE 操作的性能：
+    - SM4-GCM 加密/解密速度
+    - SM3 哈希计算速度
+    - AES-256-GCM 密封/解封速度
+    - 飞地初始化速度
+    - 代码执行速度
+
+    Returns:
+        性能基准结果
+    """
+    results = {}
+
+    # 1. SM4-GCM 加密性能
+    key = ResultEncryptor.generate_key()
+    nonce = ResultEncryptor.generate_nonce()
+    test_data = secrets.token_bytes(1024)  # 1KB
+
+    iterations = 1000
+    start = time.time()
+    for _ in range(iterations):
+        ResultEncryptor.encrypt(key, nonce, test_data)
+    sm4_encrypt_time = (time.time() - start) * 1000
+
+    results["sm4_gcm_encrypt"] = {
+        "iterations": iterations,
+        "data_size_bytes": 1024,
+        "total_time_ms": round(sm4_encrypt_time, 2),
+        "avg_time_ms": round(sm4_encrypt_time / iterations, 4),
+        "throughput_mb_s": round(1024 * iterations / (sm4_encrypt_time / 1000) / 1024 / 1024, 2),
+    }
+
+    # 2. SM3 哈希性能
+    start = time.time()
+    for _ in range(iterations):
+        sm3_engine.hash(test_data)
+    sm3_time = (time.time() - start) * 1000
+
+    results["sm3_hash"] = {
+        "iterations": iterations,
+        "data_size_bytes": 1024,
+        "total_time_ms": round(sm3_time, 2),
+        "avg_time_ms": round(sm3_time / iterations, 4),
+        "throughput_mb_s": round(1024 * iterations / (sm3_time / 1000) / 1024 / 1024, 2),
+    }
+
+    # 3. AES-256-GCM 密封性能
+    start = time.time()
+    for _ in range(iterations):
+        SealedStorage.seal(test_data, "benchmark")
+    seal_time = (time.time() - start) * 1000
+
+    results["aes256gcm_seal"] = {
+        "iterations": iterations,
+        "data_size_bytes": 1024,
+        "total_time_ms": round(seal_time, 2),
+        "avg_time_ms": round(seal_time / iterations, 4),
+    }
+
+    # 4. 飞地初始化性能
+    start = time.time()
+    for _ in range(100):
+        enclave = SGXEnclaveSimulator(str(uuid.uuid4()), 512)
+        enclave.initialize()
+    enclave_init_time = (time.time() - start) * 1000
+
+    results["enclave_init"] = {
+        "iterations": 100,
+        "total_time_ms": round(enclave_init_time, 2),
+        "avg_time_ms": round(enclave_init_time / 100, 4),
+    }
+
+    # 5. 飞地代码执行性能
+    test_code = """
+result = 0
+for i in range(1000):
+    result += i * i
+output = {"result": result}
+"""
+    start = time.time()
+    for _ in range(100):
+        enclave = SGXEnclaveSimulator(str(uuid.uuid4()), 512)
+        enclave.initialize()
+        enclave.execute_code(test_code, {"n": 1000})
+    exec_time = (time.time() - start) * 1000
+
+    results["enclave_code_execution"] = {
+        "iterations": 100,
+        "total_time_ms": round(exec_time, 2),
+        "avg_time_ms": round(exec_time / 100, 4),
+    }
+
+    return {
+        "benchmark": "tee_performance",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "results": results,
+        "summary": {
+            "sm4_gcm_encrypt_throughput_mb_s": results["sm4_gcm_encrypt"]["throughput_mb_s"],
+            "sm3_hash_throughput_mb_s": results["sm3_hash"]["throughput_mb_s"],
+            "enclave_init_avg_ms": results["enclave_init"]["avg_time_ms"],
+            "code_exec_avg_ms": results["enclave_code_execution"]["avg_time_ms"],
+        },
+    }

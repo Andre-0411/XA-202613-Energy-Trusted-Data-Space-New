@@ -18,6 +18,8 @@ import {
   FullscreenIcon,
   ContrastIcon,
   InternetIcon,
+  FlashlightIcon,
+  ChartBarIcon,
 } from 'tdesign-icons-react';
 import { useAuthStore } from '@/stores/authStore';
 import { getFilteredNavItems, type UserRole } from '@/config/rolePermissions';
@@ -145,6 +147,18 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    key: 'scenario',
+    label: '业务场景',
+    icon: <FlashlightIcon />,
+    path: '/dashboard/scenario/power-dispatch',
+    children: [
+      { label: '电网调度优化', path: '/dashboard/scenario/power-dispatch' },
+      { label: '新能源消纳管理', path: '/dashboard/scenario/renewable-energy' },
+      { label: '虚拟电厂运营', path: '/dashboard/scenario/virtual-power-plant' },
+      { label: '电力市场交易', path: '/dashboard/scenario/power-trading' },
+    ],
+  },
+  {
     key: 'portal',
     label: '门户功能',
     icon: <NotificationIcon />,
@@ -152,6 +166,18 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: '个人中心', path: '/dashboard/portal/profile' },
       { label: '公告通知', path: '/dashboard/portal/announcements' },
+    ],
+  },
+  {
+    key: 'scenario',
+    label: '业务场景',
+    icon: <ChartBarIcon />,
+    path: '/dashboard/scene/power-dispatch',
+    children: [
+      { label: '电网调度优化', path: '/dashboard/scene/power-dispatch' },
+      { label: '新能源消纳管理', path: '/dashboard/scene/renewable-energy' },
+      { label: '虚拟电厂运营', path: '/dashboard/scene/virtual-power-plant' },
+      { label: '电力市场交易', path: '/dashboard/scene/power-trading' },
     ],
   },
 ];

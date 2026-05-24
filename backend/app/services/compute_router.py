@@ -7,6 +7,8 @@
   交易结算 → MPC
   调度指令 → TEE
   统计分析 → 同态加密 (HE)
+  信用评估 → 纵向联邦学习 (FATE Hetero-LR)
+  负荷预测 → 横向联邦学习 (FATE Homo-LR)
   默认     → 差分隐私 (DP)
 """
 import logging
@@ -60,6 +62,31 @@ SCENARIO_ROUTE_MATRIX: dict[str, dict] = {
             "precision": 64,
         },
         "priority": 6,
+    },
+    "credit_assessment": {
+        "task_type": "FL",
+        "engine": "FATE",
+        "description": "信用评估 → 纵向联邦学习 (FATE Hetero-LR)",
+        "default_config": {
+            "algorithm": "Hetero-LR",
+            "num_workers": 3,
+            "epochs": 15,
+            "learning_rate": 0.15,
+            "intersect_method": "rsa",
+        },
+        "priority": 4,
+    },
+    "load_forecast": {
+        "task_type": "FL",
+        "engine": "FATE",
+        "description": "负荷预测 → 横向联邦学习 (FATE Homo-LR)",
+        "default_config": {
+            "algorithm": "Homo-LR",
+            "num_workers": 5,
+            "epochs": 20,
+            "learning_rate": 0.01,
+        },
+        "priority": 5,
     },
     "data_sharing": {
         "task_type": "DP",

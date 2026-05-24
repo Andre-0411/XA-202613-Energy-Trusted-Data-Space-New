@@ -3,10 +3,11 @@
  * 在线提交数据使用申请，审批流程跟踪，申请状态实时推送
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { Button, Dialog, Input, Select, Tag, Tooltip, Textarea } from 'tdesign-react';
+import { Button, Dialog, Input, Select, Tag, Tooltip, Textarea, Steps, MessagePlugin } from 'tdesign-react';
 import {
   SearchIcon, RefreshIcon, AddIcon, BrowseIcon,
   CheckCircleIcon, CloseCircleIcon, TimeIcon, TrendingUpIcon, FileIcon,
+  LinkIcon, UserIcon, SettingIcon,
 } from 'tdesign-icons-react';
 import ReactECharts from 'echarts-for-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -59,6 +60,29 @@ const ServiceRequestPage: React.FC = () => {
   // ===== 查看详情对话框状态 =====
   const [detailOpen, setDetailOpen] = useState<boolean>(false);
   const [selectedRequest, setSelectedRequest] = useState<Subscription | null>(null);
+
+  // ===== 需求审核流程 =====
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<Subscription | null>(null);
+  const [reviewStep, setReviewStep] = useState(0);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
+  const [reviewComment, setReviewComment] = useState('');
+
+  // ===== 认领承接 =====
+  const [claimDialogOpen, setClaimDialogOpen] = useState(false);
+  const [claimTarget, setClaimTarget] = useState<ServiceCatalog | null>(null);
+  const [claimForm, setClaimForm] = useState({
+    provider_name: '',
+    provider_contact: '',
+    estimated_time: '',
+    notes: '',
+  });
+
+  // ===== 自动下架 =====
+  const [delistDialogOpen, setDelistDialogOpen] = useState(false);
+  const [delistTarget, setDelistTarget] = useState<ServiceCatalog | null>(null);
+  const [delistReason, setDelistReason] = useState('');
+  const [delistAutoTime, setDelistAutoTime] = useState('');
 
   // ===== ECharts 配置 =====
   const trendChartOption = useMemo(() => ({
@@ -211,6 +235,64 @@ const ServiceRequestPage: React.FC = () => {
     approveMut.mutate({ subId, approved });
   }, [approveMut]);
 
+  // 需求审核流程
+  const handleReview = useCallback((sub: Subscription) => {
+    setReviewTarget(sub);
+    setReviewStep(0);
+    setReviewAction('approve');
+    setReviewComment('');
+    setReviewDialogOpen(true);
+  }, []);
+
+  const handleReviewSubmit = useCallback(() => {
+    if (reviewStep === 0) {
+      // 初审通过，进入复审
+      setReviewStep(1);
+      MessagePlugin.success('初审通过，请进行复审');
+    } else {
+      // 复审完成
+      if (reviewTarget) {
+        handleApprove(reviewTarget.id, reviewAction === 'approve');
+      }
+      MessagePlugin.success(reviewAction === 'approve' ? '审核通过' : '审核拒绝');
+      setReviewDialogOpen(false);
+    }
+  }, [reviewStep, reviewAction, reviewTarget, handleApprove]);
+
+  // 认领承接
+  const handleClaim = useCallback((service: ServiceCatalog) => {
+    setClaimTarget(service);
+    setClaimForm({
+      provider_name: '',
+      provider_contact: '',
+      estimated_time: '',
+      notes: '',
+    });
+    setClaimDialogOpen(true);
+  }, []);
+
+  const handleClaimSubmit = useCallback(() => {
+    if (!claimForm.provider_name.trim()) {
+      MessagePlugin.warning('请输入提供方名称');
+      return;
+    }
+    MessagePlugin.success('认领成功，请按时完成服务交付');
+    setClaimDialogOpen(false);
+  }, [claimForm]);
+
+  // 自动下架
+  const handleDelist = useCallback((service: ServiceCatalog) => {
+    setDelistTarget(service);
+    setDelistReason('');
+    setDelistAutoTime('');
+    setDelistDialogOpen(true);
+  }, []);
+
+  const handleDelistSubmit = useCallback(() => {
+    MessagePlugin.success('下架任务已创建，将在指定时间自动执行');
+    setDelistDialogOpen(false);
+  }, []);
+
   // ===== 获取状态 Tag 主题 =====
   const getStatusTheme = (status: string): 'warning' | 'success' | 'danger' | 'default' => {
     switch (status) {
@@ -282,6 +364,14 @@ const ServiceRequestPage: React.FC = () => {
               </span>
             )}
           </button>
+          <button
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              tabValue === 2 ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => { setTabValue(2); setPage(0); }}
+          >
+            需求认领
+          </button>
         </div>
       </div>
 
@@ -309,6 +399,14 @@ const ServiceRequestPage: React.FC = () => {
               value={statusFilter}
               options={REQUEST_STATUS_OPTIONS}
               onChange={(val) => { setStatusFilter(String(val)); setPage(0); }}
+              className="!w-full sm:!w-36"
+            />
+          )}
+          {tabValue === 2 && (
+            <Select
+              value={categoryFilter}
+              options={SERVICE_CATEGORY_OPTIONS}
+              onChange={(val) => { setCategoryFilter(String(val)); setPage(0); }}
               className="!w-full sm:!w-36"
             />
           )}
@@ -360,14 +458,34 @@ const ServiceRequestPage: React.FC = () => {
                         <StatusTag status={service.status} />
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <Button
-                          theme="primary"
-                          size="small"
-                          icon={<AddIcon />}
-                          onClick={() => handleCreateRequest(service)}
-                        >
-                          申请
-                        </Button>
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            theme="primary"
+                            size="small"
+                            icon={<AddIcon />}
+                            onClick={() => handleCreateRequest(service)}
+                          >
+                            申请
+                          </Button>
+                          <Tooltip content="认领承接">
+                            <Button
+                              variant="text"
+                              theme="success"
+                              size="small"
+                              icon={<LinkIcon />}
+                              onClick={() => handleClaim(service)}
+                            />
+                          </Tooltip>
+                          <Tooltip content="自动下架">
+                            <Button
+                              variant="text"
+                              theme="warning"
+                              size="small"
+                              icon={<SettingIcon />}
+                              onClick={() => handleDelist(service)}
+                            />
+                          </Tooltip>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -375,7 +493,7 @@ const ServiceRequestPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : tabValue === 1 ? (
           /* 我的申请列表 */
           <div className="flex-1 overflow-auto">
             <table className="w-full text-sm">
@@ -423,10 +541,10 @@ const ServiceRequestPage: React.FC = () => {
                           </Tooltip>
                           {sub.status === 'pending' && (
                             <>
-                              <Tooltip content="批准">
+                              <Tooltip content="审核">
                                 <span
-                                  className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-green-50 text-green-500 cursor-pointer transition-colors"
-                                  onClick={() => handleApprove(sub.id, true)}
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-purple-50 text-purple-500 cursor-pointer transition-colors"
+                                  onClick={() => handleReview(sub)}
                                 >
                                   <CheckCircleIcon size="16px" />
                                 </span>
@@ -446,6 +564,64 @@ const ServiceRequestPage: React.FC = () => {
                     </tr>
                   ))
                 )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* 需求认领列表 */
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-4 py-3 text-left font-bold">需求名称</th>
+                  <th className="px-4 py-3 text-left font-bold">需求分类</th>
+                  <th className="px-4 py-3 text-left font-bold">预算</th>
+                  <th className="px-4 py-3 text-left font-bold">截止时间</th>
+                  <th className="px-4 py-3 text-left font-bold">状态</th>
+                  <th className="px-4 py-3 text-center font-bold">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {/* 模拟需求数据 */}
+                {[
+                  { id: 'demand-1', name: '电网负荷预测数据需求', category: 'data_query', budget: '5000元', deadline: '2026-06-30', status: 'open' },
+                  { id: 'demand-2', name: '新能源发电量分析', category: 'data_compute', budget: '8000元', deadline: '2026-07-15', status: 'open' },
+                  { id: 'demand-3', name: '电力市场交易数据导出', category: 'data_export', budget: '3000元', deadline: '2026-06-20', status: 'claimed' },
+                ].map((demand) => (
+                  <tr key={demand.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-sm">{demand.name}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Tag variant="outline" size="small">
+                        {SERVICE_CATEGORY_OPTIONS.find(c => c.value === demand.category)?.label || demand.category}
+                      </Tag>
+                    </td>
+                    <td className="px-4 py-3 text-orange-600 font-medium">{demand.budget}</td>
+                    <td className="px-4 py-3">{demand.deadline}</td>
+                    <td className="px-4 py-3">
+                      <Tag
+                        size="small"
+                        theme={demand.status === 'open' ? 'success' : 'default'}
+                        variant="light"
+                      >
+                        {demand.status === 'open' ? '待认领' : '已认领'}
+                      </Tag>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {demand.status === 'open' && (
+                        <Button
+                          theme="primary"
+                          size="small"
+                          icon={<LinkIcon />}
+                          onClick={() => MessagePlugin.success('认领成功')}
+                        >
+                          认领
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -585,6 +761,192 @@ const ServiceRequestPage: React.FC = () => {
             </div>
             <div className="flex justify-end pt-3 border-t border-gray-100">
               <Button onClick={() => setDetailOpen(false)}>关闭</Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 需求审核流程弹窗 */}
+      <Dialog
+        header="需求审核"
+        visible={reviewDialogOpen}
+        onClose={() => setReviewDialogOpen(false)}
+        width={600}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>取消</Button>
+            {reviewStep === 1 && (
+              <Button theme="danger" onClick={() => { setReviewAction('reject'); handleReviewSubmit(); }}>
+                拒绝
+              </Button>
+            )}
+            <Button theme="primary" onClick={handleReviewSubmit}>
+              {reviewStep === 0 ? '初审通过' : '复审通过'}
+            </Button>
+          </div>
+        }
+      >
+        {reviewTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="text-blue-500" />
+              <span className="font-semibold">{reviewTarget.service_name || '未知服务'}</span>
+            </div>
+
+            {/* 审核步骤 */}
+            <Steps current={reviewStep}>
+              <Steps.StepItem title="初审" content="申请信息完整性检查" />
+              <Steps.StepItem title="复审" content="业务合规性与资源可用性审核" />
+            </Steps>
+
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-semibold mb-2">审核内容</h4>
+              {reviewStep === 0 ? (
+                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                  <li>申请理由充分性检查</li>
+                  <li>有效期合理性验证</li>
+                  <li>申请人资质审核</li>
+                  <li>申请信息完整性</li>
+                </ul>
+              ) : (
+                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                  <li>服务资源可用性检查</li>
+                  <li>配额限制验证</li>
+                  <li>业务合规性审核</li>
+                  <li>安全策略检查</li>
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">审核意见</label>
+              <Input
+                value={reviewComment}
+                onChange={setReviewComment}
+                placeholder="请输入审核意见（可选）"
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 认领承接弹窗 */}
+      <Dialog
+        header="认领承接"
+        visible={claimDialogOpen}
+        onClose={() => setClaimDialogOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setClaimDialogOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={handleClaimSubmit}>确认认领</Button>
+          </div>
+        }
+      >
+        {claimTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <LinkIcon className="text-green-500" />
+              <span className="font-semibold">{claimTarget.name}</span>
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg">
+              <p className="text-sm text-green-700 m-0">
+                认领后，您将负责完成该服务的交付工作。请确保您有能力在规定时间内完成。
+              </p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">提供方名称 *</label>
+              <Input
+                value={claimForm.provider_name}
+                onChange={(val) => setClaimForm(prev => ({ ...prev, provider_name: val }))}
+                placeholder="请输入您的机构名称"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">联系方式</label>
+              <Input
+                value={claimForm.provider_contact}
+                onChange={(val) => setClaimForm(prev => ({ ...prev, provider_contact: val }))}
+                placeholder="请输入联系方式"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">预计完成时间</label>
+              <input
+                type="date"
+                value={claimForm.estimated_time}
+                onChange={(e) => setClaimForm(prev => ({ ...prev, estimated_time: e.target.value }))}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">备注说明</label>
+              <Textarea
+                value={claimForm.notes}
+                onChange={(val) => setClaimForm(prev => ({ ...prev, notes: val }))}
+                placeholder="请说明您的服务能力和优势..."
+                rows={3}
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 自动下架弹窗 */}
+      <Dialog
+        header="自动下架配置"
+        visible={delistDialogOpen}
+        onClose={() => setDelistDialogOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDelistDialogOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={handleDelistSubmit}>创建下架任务</Button>
+          </div>
+        }
+      >
+        {delistTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <SettingIcon className="text-orange-500" />
+              <span className="font-semibold">{delistTarget.name}</span>
+            </div>
+            <div className="p-3 bg-orange-50 rounded-lg">
+              <p className="text-sm text-orange-700 m-0">
+                配置自动下架规则后，系统将在满足条件时自动将该服务下架，无需人工干预。
+              </p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">下架原因</label>
+              <Select
+                value={delistReason}
+                onChange={(val) => setDelistReason(val as string)}
+                options={[
+                  { value: 'expired', label: '服务到期' },
+                  { value: 'maintenance', label: '系统维护' },
+                  { value: 'compliance', label: '合规要求' },
+                  { value: 'custom', label: '自定义原因' },
+                ]}
+                style={{ width: '100%' }}
+                placeholder="请选择下架原因"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">自动下架时间</label>
+              <input
+                type="datetime-local"
+                value={delistAutoTime}
+                onChange={(e) => setDelistAutoTime(e.target.value)}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">通知方式</label>
+              <div className="flex gap-2">
+                <Tag variant="outline" size="small">站内消息</Tag>
+                <Tag variant="outline" size="small">邮件通知</Tag>
+                <Tag variant="outline" size="small">短信通知</Tag>
+              </div>
             </div>
           </div>
         )}

@@ -26,22 +26,25 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     'blockchain',
     'ops',
     'security',
+    'scenario',
     'portal',
   ],
   
-  // 数据管理员：数据中心 + 计算中心 + 门户功能
+  // 数据管理员：数据中心 + 计算中心 + 业务场景 + 门户功能
   data_admin: [
     'dashboard',
     'data',
     'compute',
+    'scenario',
     'portal',
   ],
   
-  // 普通用户：数据中心（只读）+ 计算中心（基础）+ 门户功能
+  // 普通用户：数据中心（只读）+ 计算中心（基础）+ 业务场景 + 门户功能
   user: [
     'dashboard',
     'data',
     'compute',
+    'scenario',
     'portal',
   ],
   
@@ -54,12 +57,13 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     'portal',
   ],
   
-  // 运维人员：运维中心 + 安全中心 + 计算中心 + 门户功能
+  // 运维人员：运维中心 + 安全中心 + 计算中心 + 业务场景 + 门户功能
   operator: [
     'dashboard',
     'ops',
     'security',
     'compute',
+    'scenario',
     'portal',
   ],
 };
@@ -75,6 +79,7 @@ export const ROLE_ROUTE_ACCESS: Record<UserRole, string[]> = {
     '/dashboard',
     '/dashboard/data/*',
     '/dashboard/compute/*',
+    '/dashboard/scenario/*',
     '/dashboard/portal/*',
   ],
 
@@ -96,6 +101,7 @@ export const ROLE_ROUTE_ACCESS: Record<UserRole, string[]> = {
     '/dashboard/compute/agents',
     '/dashboard/compute/benchmark',
     '/dashboard/compute/cluster',
+    '/dashboard/scenario/*',
     '/dashboard/portal/*',
   ],
 

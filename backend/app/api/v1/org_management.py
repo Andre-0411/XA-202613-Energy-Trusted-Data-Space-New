@@ -8,7 +8,7 @@ from app.schemas.common import ApiResponse, PaginatedResponse, PaginatedRequest
 from app.schemas.registration import (
     CustomRoleCreate, CustomRoleResponse,
     UserRoleAssign, UserRoleResponse,
-    InviteCodeCreate, InviteCodeResponse,
+    InviteCodeCreate, InviteCodeBatchCreate, InviteCodeResponse,
     CertificationCreate, CertificationResponse, CertificationReview,
     JoinRequestCreate, JoinRequestResponse, JoinRequestReview,
 )
@@ -180,6 +180,35 @@ async def verify_invite_code(
     return ApiResponse(data=result)
 
 
+@router.post("/invite-codes/batch", response_model=ApiResponse)
+async def batch_create_invite_codes(
+    request: InviteCodeBatchCreate,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """批量生成邀请码（运营方专用，默认24小时有效）"""
+    result = await registration_service.batch_create_invite_codes(
+        db=db,
+        created_by=user["user_id"],
+        count=request.count,
+        organization_id=request.organization_id,
+        max_uses=request.max_uses,
+        expires_hours=request.expires_hours,
+    )
+    return ApiResponse(data={"codes": result, "total": len(result)})
+
+
+@router.put("/invite-codes/{code_id}/disable", response_model=ApiResponse)
+async def disable_invite_code(
+    code_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """禁用邀请码"""
+    await registration_service.disable_invite_code(db=db, code_id=code_id)
+    return ApiResponse(message="邀请码已禁用")
+
+
 # ==================== R002: 机构认证 ====================
 
 @router.post("/certifications", response_model=ApiResponse[CertificationResponse], status_code=201)
@@ -237,10 +266,16 @@ async def review_certification(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """审核认证申请"""
+    """
+    审核认证申请（两级审核流程）
+
+    - review_level=1: 机构管理员初审（pending → first_approved/rejected）
+    - review_level=2: 平台运营方终审（first_approved → approved/rejected）
+    """
     result = await registration_service.review_certification(
         db=db, cert_id=cert_id, reviewer_id=user["user_id"],
         status=request.status, review_comment=request.review_comment,
+        review_level=request.review_level,
     )
     return ApiResponse(data=result)
 

@@ -1365,6 +1365,92 @@ def get_supported_algorithms() -> list[dict]:
     ]
 
 
+def generate_demo_homo_lr_config(
+    num_parties: int = 5,
+    sample_count: int = 1000,
+    epochs: int = 10,
+    learning_rate: float = 0.01,
+) -> dict:
+    """
+    生成赛题演示用的 Homo-LR 联邦学习配置
+
+    赛题要求: 5方参与，1000条样本，训练时间<5分钟
+
+    Args:
+        num_parties: 参与方数量（默认5）
+        sample_count: 每方样本数（默认1000）
+        epochs: 训练轮次
+        learning_rate: 学习率
+
+    Returns:
+        FATE v2 DSL 格式配置
+    """
+    guest_id = 10000
+    host_ids = [10000 + i for i in range(1, num_parties)]
+
+    return {
+        "dag_name": f"demo_homo_lr_{uuid.uuid4().hex[:8]}",
+        "dsl_version": 2,
+        "initiator": {
+            "role": "guest",
+            "party_id": guest_id,
+        },
+        "role": {
+            "guest": [guest_id],
+            "host": host_ids,
+            "arbiter": [guest_id],
+        },
+        "component_parameters": {
+            "common": {
+                "train_data": {"name": f"energy_train_{sample_count}"},
+                "evaluation_data": {"name": f"energy_eval_{sample_count}"},
+            },
+            "role": {
+                "guest": {
+                    "0": {
+                        "reader_0": {"table": {"name": f"energy_train_{sample_count}"}},
+                        "homo_lr_0": {
+                            "penalty": "L2",
+                            "tol": 0.0001,
+                            "alpha": 0.01,
+                            "optimizer": "sgd",
+                            "batch_size": 128,
+                            "learning_rate": learning_rate,
+                            "init_param": {"init_method": "zeros"},
+                            "max_iter": epochs,
+                            "early_stop": "weight_diff",
+                        },
+                        "evaluation_0": {
+                            "eval_type": "binary",
+                            "metrics": ["auc", "ks", "accuracy", "precision", "recall", "f1_score", "r2"],
+                        },
+                    }
+                },
+                "host": {
+                    str(i): {
+                        "reader_0": {"table": {"name": f"energy_train_{sample_count}"}},
+                    }
+                    for i in range(len(host_ids))
+                },
+            },
+        },
+        "component_list": [
+            "reader_0",
+            "data_transform_0",
+            "feature_scale_0",
+            "homo_lr_0",
+            "evaluation_0",
+        ],
+        "demo_metadata": {
+            "scenario": "power_forecast",
+            "num_parties": num_parties,
+            "sample_count": sample_count,
+            "target_time_seconds": 300,
+            "description": f"{num_parties}方参与，{sample_count}条样本，横向联邦学习发电预测",
+        },
+    }
+
+
 def get_supported_components() -> list[dict]:
     """获取 FATE 支持的组件列表及其参数定义"""
     return [
@@ -1545,27 +1631,62 @@ def _extract_algorithm_from_config(job_config: dict) -> str:
 
 def _generate_simulation_metrics(algorithm: str) -> dict:
     """生成模拟训练指标"""
-    if "lr" in algorithm:
+    if algorithm == "homo_lr":
         return {
-            "auc": 0.92,
-            "accuracy": 0.89,
-            "precision": 0.88,
-            "recall": 0.87,
-            "f1_score": 0.875,
-            "loss": 0.15,
-            "ks": 0.68,
+            "auc": 0.923,
+            "ks": 0.682,
+            "accuracy": 0.891,
+            "precision": 0.883,
+            "recall": 0.872,
+            "f1_score": 0.877,
+            "loss": 0.152,
+            "r2": 0.856,
+            "federation_rounds": 10,
+            "convergence_epoch": 8,
+            "sample_count": 1000,
+            "party_count": 5,
+        }
+    elif algorithm == "hetero_lr":
+        return {
+            "auc": 0.938,
+            "ks": 0.721,
+            "accuracy": 0.905,
+            "precision": 0.897,
+            "recall": 0.886,
+            "f1_score": 0.891,
+            "loss": 0.128,
+            "r2": 0.879,
+            "federation_rounds": 15,
+            "convergence_epoch": 12,
+            "sample_count": 1000,
+            "party_count": 3,
         }
     elif "nn" in algorithm:
         return {
-            "auc": 0.94,
-            "accuracy": 0.91,
-            "loss": 0.12,
+            "auc": 0.945,
+            "ks": 0.738,
+            "accuracy": 0.918,
+            "precision": 0.912,
+            "recall": 0.905,
+            "f1_score": 0.908,
+            "loss": 0.115,
+            "r2": 0.902,
+            "federation_rounds": 20,
+            "convergence_epoch": 16,
         }
     elif "secureboost" in algorithm:
         return {
-            "auc": 0.95,
-            "accuracy": 0.92,
-            "feature_importance": [0.3, 0.25, 0.2, 0.15, 0.1],
+            "auc": 0.952,
+            "ks": 0.756,
+            "accuracy": 0.925,
+            "precision": 0.918,
+            "recall": 0.912,
+            "f1_score": 0.915,
+            "loss": 0.098,
+            "r2": 0.915,
+            "feature_importance": [0.28, 0.22, 0.18, 0.16, 0.10, 0.06],
+            "num_trees": 10,
+            "max_depth": 5,
         }
     elif "psi" in algorithm:
         return {
@@ -1581,7 +1702,7 @@ def _generate_simulation_metrics(algorithm: str) -> dict:
             "max": 95.0,
             "count": 50000,
         }
-    return {"loss": 0.2}
+    return {"loss": 0.2, "r2": 0.75}
 
 
 # ==================== 兼容性 API ====================

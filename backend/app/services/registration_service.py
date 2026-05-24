@@ -130,6 +130,76 @@ async def use_invite_code(db: AsyncSession, code: str) -> bool:
     return True
 
 
+async def batch_create_invite_codes(
+    db: AsyncSession,
+    created_by: str,
+    count: int = 5,
+    organization_id: Optional[str] = None,
+    max_uses: int = 1,
+    expires_hours: int = 24,
+) -> list[dict]:
+    """
+    批量生成邀请码
+
+    Args:
+        db: 数据库会话
+        created_by: 创建者用户 ID
+        count: 生成数量
+        organization_id: 关联组织 ID（可选）
+        max_uses: 每个邀请码最大使用次数
+        expires_hours: 有效小时数（默认24小时，符合南方电网指引）
+
+    Returns:
+        生成的邀请码列表
+    """
+    from datetime import timedelta
+
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_hours)
+    codes = []
+
+    for _ in range(count):
+        code = _generate_code()
+        # 确保唯一
+        existing = await db.execute(select(InviteCode).where(InviteCode.code == code))
+        while existing.scalar_one_or_none():
+            code = _generate_code()
+            existing = await db.execute(select(InviteCode).where(InviteCode.code == code))
+
+        invite = InviteCode(
+            code=code,
+            created_by=uuid.UUID(created_by),
+            organization_id=uuid.UUID(organization_id) if organization_id else None,
+            max_uses=max_uses,
+            used_count=0,
+            error_count=0,
+            status="active",
+            expires_at=expires_at,
+        )
+        db.add(invite)
+        codes.append({
+            "code": code,
+            "max_uses": max_uses,
+            "expires_at": expires_at.isoformat(),
+        })
+
+    await db.commit()
+    logger.info(f"Batch created {count} invite codes by user {created_by}")
+    return codes
+
+
+async def disable_invite_code(db: AsyncSession, code_id: str) -> bool:
+    """禁用邀请码"""
+    result = await db.execute(select(InviteCode).where(InviteCode.id == uuid.UUID(code_id)))
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise DataNotFoundError("邀请码不存在")
+
+    invite.status = "disabled"
+    await db.commit()
+    logger.info(f"Invite code {code_id} disabled")
+    return True
+
+
 # ==================== 机构认证 ====================
 
 async def create_certification(
@@ -203,36 +273,86 @@ async def review_certification(
     reviewer_id: str,
     status: str,
     review_comment: Optional[str] = None,
+    review_level: int = 1,
 ) -> dict:
-    """审核认证申请"""
+    """
+    审核认证申请（两级审核流程）
+
+    两级审核流程（符合南方电网指引）：
+    - 一级审核（review_level=1）：机构管理员初审
+      - pending → first_approved（通过）/ rejected（拒绝）
+    - 二级审核（review_level=2）：平台运营方终审
+      - first_approved → approved（通过）/ rejected（拒绝）
+
+    Args:
+        cert_id: 认证申请 ID
+        reviewer_id: 审核人 ID
+        status: 审核结果 (approved/rejected)
+        review_comment: 审核意见
+        review_level: 审核级别 (1=机构管理员初审, 2=平台运营方终审)
+    """
     result = await db.execute(
         select(OrganizationCertification).where(OrganizationCertification.id == uuid.UUID(cert_id))
     )
     cert = result.scalar_one_or_none()
     if not cert:
         raise DataNotFoundError("认证申请不存在")
-    if cert.status != "pending":
-        raise DataValidationError(f"认证申请状态不为待审批: {cert.status}")
 
-    cert.status = status
-    cert.reviewer_id = uuid.UUID(reviewer_id)
-    cert.review_comment = review_comment
-    cert.reviewed_at = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
 
-    # 如果审批通过，更新组织认证状态
-    if status == "approved":
-        org_result = await db.execute(select(Organization).where(Organization.id == cert.organization_id))
-        org = org_result.scalar_one_or_none()
-        if org:
-            org.status = "certified"
-            logger.info(f"Organization {cert.organization_id} certified with type {cert.cert_type}")
+    if review_level == 1:
+        # 一级审核（机构管理员初审）
+        if cert.status != "pending":
+            raise DataValidationError(f"认证申请状态不为待审批: {cert.status}")
+
+        if status == "approved":
+            cert.status = "first_approved"
+            cert.first_reviewer_id = uuid.UUID(reviewer_id)
+            cert.first_review_comment = review_comment
+            cert.first_reviewed_at = now
+            logger.info(f"Certification {cert_id} first approved by org admin {reviewer_id}")
+        else:
+            cert.status = "rejected"
+            cert.first_reviewer_id = uuid.UUID(reviewer_id)
+            cert.first_review_comment = review_comment
+            cert.first_reviewed_at = now
+            cert.reviewer_id = uuid.UUID(reviewer_id)
+            cert.review_comment = review_comment
+            cert.reviewed_at = now
+            logger.info(f"Certification {cert_id} rejected at first review by {reviewer_id}")
+
+    elif review_level == 2:
+        # 二级审核（平台运营方终审）
+        if cert.status != "first_approved":
+            raise DataValidationError(f"认证申请未通过一级审核，当前状态: {cert.status}")
+
+        cert.status = status
+        cert.second_reviewer_id = uuid.UUID(reviewer_id)
+        cert.second_review_comment = review_comment
+        cert.second_reviewed_at = now
+        cert.reviewer_id = uuid.UUID(reviewer_id)
+        cert.review_comment = review_comment
+        cert.reviewed_at = now
+
+        # 如果终审通过，更新组织认证状态
+        if status == "approved":
+            org_result = await db.execute(select(Organization).where(Organization.id == cert.organization_id))
+            org = org_result.scalar_one_or_none()
+            if org:
+                org.status = "certified"
+                logger.info(f"Organization {cert.organization_id} certified with type {cert.cert_type}")
+
+        logger.info(f"Certification {cert_id} second reviewed: {status} by platform ops {reviewer_id}")
+
+    else:
+        raise DataValidationError(f"无效的审核级别: {review_level}，支持 1（初审）或 2（终审）")
 
     await db.commit()
-    logger.info(f"Certification {cert_id} reviewed: {status} by {reviewer_id}")
     return {
         "id": str(cert.id),
         "status": cert.status,
-        "reviewed_at": cert.reviewed_at.isoformat(),
+        "review_level": review_level,
+        "reviewed_at": now.isoformat(),
     }
 
 

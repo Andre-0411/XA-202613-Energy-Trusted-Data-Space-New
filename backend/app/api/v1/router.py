@@ -37,6 +37,7 @@ from app.api.v1 import (
     compute_result,
     task_status,
     agent_manage,
+    agent_chat,
     blockchain_nft,
     blockchain_evidence,
     blockchain_contract,
@@ -136,6 +137,7 @@ router.include_router(compute_router.router, prefix="/compute/router", tags=["�
 router.include_router(compute_result.router, prefix="/compute/results", tags=["计算结果管理"])
 router.include_router(task_status.router, prefix="/compute/task-status", tags=["任务状态追踪"])
 router.include_router(agent_manage.router, prefix="/agents", tags=["Agent 管理"])
+router.include_router(agent_chat.router, prefix="/agent", tags=["Agent 对话"])
 
 # 区块链
 router.include_router(blockchain_nft.router, prefix="/blockchain/nft", tags=["NFT确权"])

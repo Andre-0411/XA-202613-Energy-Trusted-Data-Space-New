@@ -17,6 +17,14 @@ class InviteCodeCreate(BaseModel):
     expires_at: str = Field(description="过期时间 ISO 8601")
 
 
+class InviteCodeBatchCreate(BaseModel):
+    """批量创建邀请码"""
+    count: int = Field(default=5, ge=1, le=100, description="生成数量")
+    organization_id: Optional[str] = Field(default=None, description="关联组织 ID")
+    max_uses: int = Field(default=1, ge=1, le=1000, description="每个邀请码最大使用次数")
+    expires_hours: int = Field(default=24, ge=1, le=720, description="有效小时数（默认24小时）")
+
+
 class InviteCodeResponse(BaseModel):
     """邀请码响应"""
     id: str = Field(description="邀请码 ID")
@@ -54,6 +62,7 @@ class CertificationReview(BaseModel):
     """审核认证申请"""
     status: str = Field(description="审核结果: approved/rejected")
     review_comment: Optional[str] = Field(default=None, description="审核意见")
+    review_level: int = Field(default=1, description="审核级别: 1=机构管理员初审, 2=平台运营方终审")
 
 
 class CertificationResponse(BaseModel):

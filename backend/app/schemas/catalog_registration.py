@@ -112,16 +112,35 @@ class AccessScopeRuleResponse(BaseModel):
 
 # ==================== 供给渠道 / 管控协议 / 开放范围 / 合规文档 / 审批 ====================
 
+class SupplyChannelItem(BaseModel):
+    """供给通道条目"""
+    channel_type: str = Field(description="通道类型: dataset/api/privacy_compute/ciphertext_query")
+    channel_name: str = Field(description="通道名称")
+    endpoint: Optional[str] = Field(default=None, description="通道端点地址")
+    protocol: Optional[str] = Field(default=None, description="协议: REST/gRPC/MQTT/WebSocket")
+    auth_type: Optional[str] = Field(default=None, description="认证方式: token/certificate/none")
+    description: Optional[str] = Field(default=None, description="通道描述")
+    config: dict = Field(default_factory=dict, description="额外配置")
+
+
 class SupplyChannelConfig(BaseModel):
-    """供给渠道配置"""
-    channels: List[dict] = Field(default_factory=list, description="供给渠道列表")
+    """供给通道配置"""
+    channels: List[SupplyChannelItem] = Field(default_factory=list, description="供给通道列表")
 
 
 class ControlProtocolConfig(BaseModel):
     """管控协议配置"""
-    protocol_type: str = Field(default="default", description="协议类型")
+    protocol_type: str = Field(default="default", description="协议类型: default/custom/template")
+    template_id: Optional[str] = Field(default=None, description="模板ID（protocol_type=template时必填）")
     rules: dict = Field(default_factory=dict, description="协议规则")
     description: Optional[str] = Field(default=None, description="协议描述")
+    # 常用管控规则项
+    max_access_count: Optional[int] = Field(default=None, description="最大访问次数")
+    access_duration_hours: Optional[int] = Field(default=None, description="访问时长限制（小时）")
+    allow_download: bool = Field(default=True, description="是否允许下载")
+    allow_forward: bool = Field(default=False, description="是否允许转发")
+    watermark_enabled: bool = Field(default=False, description="是否启用水印")
+    audit_log_enabled: bool = Field(default=True, description="是否记录审计日志")
 
 
 class AccessScopeConfig(BaseModel):

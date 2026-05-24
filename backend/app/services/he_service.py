@@ -373,3 +373,253 @@ async def get_he_status(db: AsyncSession, user_id: str, key_id: Optional[str] = 
         "engine": "TenSEAL (Microsoft SEAL)",
         "supported_schemes": list(HE_SCHEMES.keys()),
     }
+
+
+async def run_he_benchmark(
+    scheme: str = "ckks",
+    poly_modulus_degree: int = 8192,
+    data_size: int = 1000,
+) -> dict:
+    """
+    同态加密性能基准测试
+
+    测试 TenSEAL CKKS/BFV 方案的各项操作性能：
+    - 密钥生成
+    - 加密速度
+    - 密文加法
+    - 密文乘法
+    - 解密速度
+
+    Args:
+        scheme: HE 方案 (ckks/bfv)
+        poly_modulus_degree: 多项式模数维度
+        data_size: 测试数据大小
+
+    Returns:
+        性能基准结果
+    """
+    if scheme not in HE_SCHEMES:
+        raise DataValidationError(f"不支持的 HE 方案: {scheme}")
+
+    results = {}
+
+    # 1. 密钥生成
+    start = time.time()
+    context = _create_context(scheme, poly_modulus_degree)
+    keygen_time = (time.time() - start) * 1000
+
+    results["key_generation"] = {
+        "time_ms": round(keygen_time, 2),
+        "poly_modulus_degree": poly_modulus_degree,
+    }
+
+    # 准备测试数据
+    if scheme == "ckks":
+        data = [float(i) / data_size for i in range(data_size)]
+    else:
+        data = [i % 1000 for i in range(data_size)]
+
+    # 2. 加密性能
+    iterations = 10
+    start = time.time()
+    for _ in range(iterations):
+        if scheme == "ckks":
+            enc_vec = ts.ckks_vector(context, data)
+        else:
+            enc_vec = ts.bfv_vector(context, data)
+    encrypt_time = (time.time() - start) * 1000
+
+    results["encryption"] = {
+        "iterations": iterations,
+        "data_size": data_size,
+        "total_time_ms": round(encrypt_time, 2),
+        "avg_time_ms": round(encrypt_time / iterations, 2),
+        "throughput_values_per_sec": round(data_size * iterations / (encrypt_time / 1000)),
+    }
+
+    # 3. 密文加法性能
+    if scheme == "ckks":
+        enc1 = ts.ckks_vector(context, data)
+        enc2 = ts.ckks_vector(context, [x + 1.0 for x in data])
+    else:
+        enc1 = ts.bfv_vector(context, data)
+        enc2 = ts.bfv_vector(context, [x + 1 for x in data])
+
+    start = time.time()
+    for _ in range(iterations):
+        enc_sum = enc1 + enc2
+    add_time = (time.time() - start) * 1000
+
+    results["ciphertext_addition"] = {
+        "iterations": iterations,
+        "total_time_ms": round(add_time, 2),
+        "avg_time_ms": round(add_time / iterations, 2),
+    }
+
+    # 4. 密文乘法性能
+    start = time.time()
+    for _ in range(iterations):
+        enc_product = enc1 * enc2
+    mul_time = (time.time() - start) * 1000
+
+    results["ciphertext_multiplication"] = {
+        "iterations": iterations,
+        "total_time_ms": round(mul_time, 2),
+        "avg_time_ms": round(mul_time / iterations, 2),
+    }
+
+    # 5. 解密性能
+    start = time.time()
+    for _ in range(iterations):
+        if scheme == "ckks":
+            dec_vec = ts.ckks_vector(context, data)
+        else:
+            dec_vec = ts.bfv_vector(context, data)
+        dec_vec.decrypt()
+    decrypt_time = (time.time() - start) * 1000
+
+    results["decryption"] = {
+        "iterations": iterations,
+        "data_size": data_size,
+        "total_time_ms": round(decrypt_time, 2),
+        "avg_time_ms": round(decrypt_time / iterations, 2),
+    }
+
+    # 6. 密文大小
+    enc_size = len(enc_vec.serialize())
+
+    return {
+        "benchmark": f"he_{scheme}_performance",
+        "scheme": scheme,
+        "scheme_name": HE_SCHEMES[scheme]["name"],
+        "poly_modulus_degree": poly_modulus_degree,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "results": results,
+        "ciphertext_size_bytes": enc_size,
+        "summary": {
+            "encrypt_avg_ms": results["encryption"]["avg_time_ms"],
+            "add_avg_ms": results["ciphertext_addition"]["avg_time_ms"],
+            "multiply_avg_ms": results["ciphertext_multiplication"]["avg_time_ms"],
+            "decrypt_avg_ms": results["decryption"]["avg_time_ms"],
+        },
+    }
+
+
+async def run_he_operation_demo(
+    db: AsyncSession,
+    user_id: str,
+    organization_id: str,
+) -> dict:
+    """
+    同态加密运算演示
+
+    演示 CKKS 和 BFV 方案的密文运算：
+    1. 加密两个向量
+    2. 执行密文加法
+    3. 执行密文乘法
+    4. 解密结果
+    5. 验证正确性
+
+    Args:
+        db: 数据库会话
+        user_id: 用户 ID
+        organization_id: 组织 ID
+
+    Returns:
+        演示结果
+    """
+    demo_results = {}
+
+    for scheme in ["ckks", "bfv"]:
+        scheme_info = HE_SCHEMES[scheme]
+        context = _create_context(scheme)
+
+        # 准备数据
+        if scheme == "ckks":
+            data_a = [1.5, 2.3, 3.7, 4.1, 5.9]
+            data_b = [0.5, 1.7, 2.1, 3.3, 4.6]
+        else:
+            data_a = [10, 20, 30, 40, 50]
+            data_b = [5, 15, 25, 35, 45]
+
+        # 加密
+        start = time.time()
+        if scheme == "ckks":
+            enc_a = ts.ckks_vector(context, data_a)
+            enc_b = ts.ckks_vector(context, data_b)
+        else:
+            enc_a = ts.bfv_vector(context, data_a)
+            enc_b = ts.bfv_vector(context, data_b)
+        encrypt_time = (time.time() - start) * 1000
+
+        # 密文加法
+        start = time.time()
+        enc_sum = enc_a + enc_b
+        add_time = (time.time() - start) * 1000
+
+        # 密文乘法
+        start = time.time()
+        enc_product = enc_a * enc_b
+        mul_time = (time.time() - start) * 1000
+
+        # 解密
+        start = time.time()
+        dec_sum = enc_sum.decrypt()
+        dec_product = enc_product.decrypt()
+        decrypt_time = (time.time() - start) * 1000
+
+        # 验证
+        if scheme == "ckks":
+            expected_sum = [a + b for a, b in zip(data_a, data_b)]
+            expected_product = [a * b for a, b in zip(data_a, data_b)]
+            sum_error = sum(abs(d - e) for d, e in zip(dec_sum, expected_sum)) / len(expected_sum)
+            product_error = sum(abs(d - e) for d, e in zip(dec_product, expected_product)) / len(expected_product)
+        else:
+            expected_sum = [a + b for a, b in zip(data_a, data_b)]
+            expected_product = [a * b for a, b in zip(data_a, data_b)]
+            sum_error = 0 if list(dec_sum) == expected_sum else 1
+            product_error = 0 if list(dec_product) == expected_product else 1
+
+        demo_results[scheme] = {
+            "scheme_name": scheme_info["name"],
+            "input_a": data_a,
+            "input_b": data_b,
+            "sum_result": list(dec_sum)[:5],
+            "sum_expected": expected_sum,
+            "sum_error": round(sum_error, 8),
+            "product_result": list(dec_product)[:5],
+            "product_expected": expected_product,
+            "product_error": round(product_error, 8),
+            "timing": {
+                "encrypt_ms": round(encrypt_time, 2),
+                "add_ms": round(add_time, 2),
+                "multiply_ms": round(mul_time, 2),
+                "decrypt_ms": round(decrypt_time, 2),
+            },
+        }
+
+    # 存储演示任务
+    task = ComputeTask(
+        name="同态加密运算演示", task_type="HE", scenario="he_demo",
+        config={"schemes": ["ckks", "bfv"]},
+        input_asset_ids=[], status="completed",
+        created_by=uuid.UUID(user_id) if user_id else uuid.uuid4(),
+        organization_id=uuid.UUID(organization_id) if organization_id else uuid.uuid4(),
+    )
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    _audit_log("he_operation_demo", str(task.id))
+
+    return {
+        "task_id": str(task.id),
+        "demo": "he_operation_demo",
+        "engine": "TenSEAL (Microsoft SEAL)",
+        "results": demo_results,
+        "summary": {
+            "ckks_sum_error": demo_results["ckks"]["sum_error"],
+            "ckks_product_error": demo_results["ckks"]["product_error"],
+            "bfv_exact_match": demo_results["bfv"]["sum_error"] == 0 and demo_results["bfv"]["product_error"] == 0,
+        },
+    }

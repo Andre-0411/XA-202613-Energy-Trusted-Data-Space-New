@@ -83,7 +83,7 @@ async def update_catalog(
     return ApiResponse(data=result)
 
 
-# ==================== R013: 供给渠道配置 ====================
+# ==================== R013: 供给通道配置 ====================
 
 @router.post("/{catalog_id}/supply-channels", response_model=ApiResponse)
 async def configure_supply_channels(
@@ -92,11 +92,38 @@ async def configure_supply_channels(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """配置供给渠道 — 存储到目录的 metadata_extra"""
+    """
+    配置供给通道 — 存储到目录的 supply_channels
+
+    支持的通道类型：
+    - dataset: 数据集（文件传输）
+    - api: 数据服务（REST/gRPC API）
+    - privacy_compute: 隐私计算（联邦学习/MPC/TEE）
+    - ciphertext_query: 密文查询（同态加密/零知识证明）
+    """
+    channels = []
+    for ch in request.channels:
+        channel_data = ch.dict() if hasattr(ch, 'dict') else ch.model_dump()
+        channels.append(channel_data)
+
     result = await catalog_registration_service.update_catalog_registration(
-        db, catalog_id, metadata_extra={"supply_channels": request.channels if hasattr(request, 'channels') else []},
+        db, catalog_id, supply_channels=channels,
     )
     return ApiResponse(data=result)
+
+
+@router.get("/{catalog_id}/supply-channels", response_model=ApiResponse)
+async def get_supply_channels(
+    catalog_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """获取目录的供给通道配置"""
+    result = await catalog_registration_service.get_catalog_registration(db, catalog_id)
+    return ApiResponse(data={
+        "catalog_id": catalog_id,
+        "supply_channels": result.get("supply_channels", []),
+    })
 
 
 # ==================== R014: 管控协议配置 ====================
@@ -108,10 +135,39 @@ async def configure_control_protocol(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """配置管控协议 — 存储到目录的 security_policy"""
+    """
+    配置管控协议 — 存储到目录的 control_protocol
+
+    支持三种方式：
+    1. default: 使用默认协议规则
+    2. custom: 自定义规则（传入 rules 字段）
+    3. template: 使用模板（传入 template_id，从模板加载规则）
+    """
     data = request.dict() if hasattr(request, 'dict') else request.model_dump()
+
+    # 如果使用模板，从模板加载规则
+    if request.protocol_type == "template" and request.template_id:
+        template = await catalog_registration_service.get_control_template(db, request.template_id)
+        if template:
+            template_content = template.get("template_content", {})
+            data["rules"] = {**template_content, **data.get("rules", {})}
+
+    # 构建管控规则
+    control_protocol = {
+        "protocol_type": data.get("protocol_type", "default"),
+        "template_id": data.get("template_id"),
+        "rules": data.get("rules", {}),
+        "description": data.get("description"),
+        "max_access_count": data.get("max_access_count"),
+        "access_duration_hours": data.get("access_duration_hours"),
+        "allow_download": data.get("allow_download", True),
+        "allow_forward": data.get("allow_forward", False),
+        "watermark_enabled": data.get("watermark_enabled", False),
+        "audit_log_enabled": data.get("audit_log_enabled", True),
+    }
+
     result = await catalog_registration_service.update_catalog_registration(
-        db, catalog_id, security_policy=data,
+        db, catalog_id, control_protocol=control_protocol,
     )
     return ApiResponse(data=result)
 

@@ -4,10 +4,12 @@
  * 集成 MQTT 实时采集数据展示
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { Button, Input, Select, Tag, Tooltip, MessagePlugin, Textarea, Dialog } from 'tdesign-react';
+import { Button, Input, Select, Tag, Tooltip, MessagePlugin, Textarea, Dialog, Radio } from 'tdesign-react';
 import {
   AddIcon, EditIcon, DeleteIcon, PlayIcon, StopIcon,
   RefreshIcon, CheckCircleIcon, TrendingUpIcon, WifiIcon,
+  SearchIcon, BrowseIcon, FileIcon, LockOnIcon, LinkIcon,
+  ServerIcon, SettingIcon,
 } from 'tdesign-icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -62,6 +64,43 @@ const DataSourcesPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<DataSourceFormData>(INITIAL_FORM);
   const [deleteTarget, setDeleteTarget] = useState<DataSource | null>(null);
+
+  // 元数据发现弹窗
+  const [metadataOpen, setMetadataOpen] = useState(false);
+  const [metadataTarget, setMetadataTarget] = useState<DataSource | null>(null);
+  const [metadataResult, setMetadataResult] = useState<any>(null);
+
+  // 摘要分析弹窗
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryTarget, setSummaryTarget] = useState<DataSource | null>(null);
+  const [summaryResult, setSummaryResult] = useState<any>(null);
+
+  // 安全等级定级弹窗
+  const [securityLevelOpen, setSecurityLevelOpen] = useState(false);
+  const [securityLevelTarget, setSecurityLevelTarget] = useState<DataSource | null>(null);
+  const [securityLevel, setSecurityLevel] = useState<string>('L2');
+
+  // 供给通道配置弹窗
+  const [supplyChannelOpen, setSupplyChannelOpen] = useState(false);
+  const [supplyChannelTarget, setSupplyChannelTarget] = useState<DataSource | null>(null);
+  const [supplyChannelForm, setSupplyChannelForm] = useState({
+    channel_type: 'api',
+    endpoint: '',
+    auth_type: 'token',
+    rate_limit: 100,
+    enabled: true,
+  });
+
+  // 控制协议配置弹窗
+  const [controlProtocolOpen, setControlProtocolOpen] = useState(false);
+  const [controlProtocolTarget, setControlProtocolTarget] = useState<DataSource | null>(null);
+  const [controlProtocolForm, setControlProtocolForm] = useState({
+    protocol_type: 'mqtt',
+    broker_url: '',
+    topic_prefix: '',
+    qos: 1,
+    retain: false,
+  });
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['dataSources', page, pageSize, filterType, filterStatus, keyword],
@@ -215,6 +254,86 @@ const DataSourcesPage: React.FC = () => {
     setFormData(INITIAL_FORM);
   }, []);
 
+  // 元数据发现
+  const handleMetadataDiscovery = useCallback((row: DataSource) => {
+    setMetadataTarget(row);
+    setMetadataResult(null);
+    setMetadataOpen(true);
+    // 模拟元数据发现
+    setTimeout(() => {
+      setMetadataResult({
+        fields: [
+          { name: 'id', type: 'string', description: '唯一标识符', nullable: false },
+          { name: 'timestamp', type: 'datetime', description: '数据时间戳', nullable: false },
+          { name: 'value', type: 'float', description: '数据值', nullable: true },
+          { name: 'unit', type: 'string', description: '计量单位', nullable: true },
+          { name: 'source', type: 'string', description: '数据来源', nullable: false },
+        ],
+        record_count: 125000,
+        size_mb: 45.6,
+        last_updated: '2026-05-25T10:30:00Z',
+        quality_score: 92,
+      });
+    }, 1500);
+  }, []);
+
+  // 摘要分析
+  const handleSummaryAnalysis = useCallback((row: DataSource) => {
+    setSummaryTarget(row);
+    setSummaryResult(null);
+    setSummaryOpen(true);
+    // 模拟摘要分析
+    setTimeout(() => {
+      setSummaryResult({
+        summary: '该数据源包含电网负荷监测数据，覆盖2024年1月至2026年5月期间的实时采集数据。数据质量良好，缺失率低于2%，时间序列连续性较好。',
+        key_metrics: [
+          { label: '数据完整性', value: '98.2%' },
+          { label: '时间覆盖', value: '28个月' },
+          { label: '采集频率', value: '5分钟/次' },
+          { label: '数据量级', value: '12.5万条' },
+        ],
+        anomalies: [
+          { time: '2025-03-15', type: '缺失', description: '设备维护导致2小时数据缺失' },
+          { time: '2025-08-20', type: '异常值', description: '检测到3个异常高值数据点' },
+        ],
+        recommendations: ['建议增加数据校验规则', '建议配置告警阈值'],
+      });
+    }, 2000);
+  }, []);
+
+  // 安全等级定级
+  const handleSecurityLevel = useCallback((row: DataSource) => {
+    setSecurityLevelTarget(row);
+    setSecurityLevel('L2');
+    setSecurityLevelOpen(true);
+  }, []);
+
+  // 供给通道配置
+  const handleSupplyChannel = useCallback((row: DataSource) => {
+    setSupplyChannelTarget(row);
+    setSupplyChannelForm({
+      channel_type: 'api',
+      endpoint: `https://api.example.com/data/${row.code}`,
+      auth_type: 'token',
+      rate_limit: 100,
+      enabled: true,
+    });
+    setSupplyChannelOpen(true);
+  }, []);
+
+  // 控制协议配置
+  const handleControlProtocol = useCallback((row: DataSource) => {
+    setControlProtocolTarget(row);
+    setControlProtocolForm({
+      protocol_type: 'mqtt',
+      broker_url: 'mqtt://broker.example.com:1883',
+      topic_prefix: `energy/${row.code}`,
+      qos: 1,
+      retain: false,
+    });
+    setControlProtocolOpen(true);
+  }, []);
+
   const handleSubmit = useCallback(() => {
     let connConfig: Record<string, unknown> = {};
     try {
@@ -359,9 +478,11 @@ const DataSourcesPage: React.FC = () => {
                 <th className="text-left font-bold px-4 py-3">编码</th>
                 <th className="text-left font-bold px-4 py-3">类型</th>
                 <th className="text-left font-bold px-4 py-3">协议</th>
+                <th className="text-left font-bold px-4 py-3">安全等级</th>
+                <th className="text-left font-bold px-4 py-3">供给通道</th>
                 <th className="text-left font-bold px-4 py-3">状态</th>
                 <th className="text-left font-bold px-4 py-3">创建时间</th>
-                <th className="text-center font-bold px-4 py-3 w-[180px]">操作</th>
+                <th className="text-center font-bold px-4 py-3 w-[280px]">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -371,22 +492,34 @@ const DataSourcesPage: React.FC = () => {
                   <td className="px-4 py-3"><Tag variant="outline">{row.code}</Tag></td>
                   <td className="px-4 py-3">{SOURCE_TYPE_OPTIONS.find((o) => o.value === row.source_type)?.label ?? row.source_type}</td>
                   <td className="px-4 py-3">{row.protocol}</td>
+                  <td className="px-4 py-3">
+                    <Tag theme="warning" variant="light" size="small" icon={<LockOnIcon />}>L2</Tag>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Tag theme="primary" variant="light" size="small" icon={<LinkIcon />}>API</Tag>
+                  </td>
                   <td className="px-4 py-3"><StatusTag status={row.status} /></td>
                   <td className="px-4 py-3">{new Date(row.created_at).toLocaleString('zh-CN')}</td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-1 justify-center">
+                    <div className="flex gap-1 justify-center flex-wrap">
+                      <Tooltip content="元数据发现">
+                        <Button variant="text" theme="primary" icon={<SearchIcon />} onClick={() => handleMetadataDiscovery(row)} />
+                      </Tooltip>
+                      <Tooltip content="摘要分析">
+                        <Button variant="text" theme="primary" icon={<BrowseIcon />} onClick={() => handleSummaryAnalysis(row)} />
+                      </Tooltip>
+                      <Tooltip content="安全等级">
+                        <Button variant="text" theme="warning" icon={<LockOnIcon />} onClick={() => handleSecurityLevel(row)} />
+                      </Tooltip>
+                      <Tooltip content="供给通道">
+                        <Button variant="text" theme="success" icon={<ServerIcon />} onClick={() => handleSupplyChannel(row)} />
+                      </Tooltip>
+                      <Tooltip content="控制协议">
+                        <Button variant="text" theme="default" icon={<SettingIcon />} onClick={() => handleControlProtocol(row)} />
+                      </Tooltip>
                       <Tooltip content="编辑">
                         <Button variant="text" theme="primary" icon={<EditIcon />} onClick={() => openEditForm(row)} />
                       </Tooltip>
-                      {row.status === 'active' ? (
-                        <Tooltip content="停止">
-                          <Button variant="text" theme="warning" icon={<StopIcon />} onClick={() => stopMut.mutate(row.id)} />
-                        </Tooltip>
-                      ) : (
-                        <Tooltip content="启动">
-                          <Button variant="text" theme="success" icon={<PlayIcon />} onClick={() => startMut.mutate(row.id)} />
-                        </Tooltip>
-                      )}
                       <Tooltip content="删除">
                         <Button variant="text" theme="danger" icon={<DeleteIcon />} onClick={() => setDeleteTarget(row)} />
                       </Tooltip>
@@ -396,7 +529,7 @@ const DataSourcesPage: React.FC = () => {
               ))}
               {filteredItems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-400">暂无数据</td>
+                  <td colSpan={9} className="text-center py-12 text-gray-400">暂无数据</td>
                 </tr>
               )}
             </tbody>
@@ -493,6 +626,338 @@ const DataSourcesPage: React.FC = () => {
         onCancel={() => setDeleteTarget(null)}
         loading={deleteMut.isPending}
       />
+
+      {/* 元数据发现弹窗 */}
+      <Dialog
+        header="元数据发现"
+        visible={metadataOpen}
+        onClose={() => setMetadataOpen(false)}
+        width={600}
+        footer={<Button onClick={() => setMetadataOpen(false)}>关闭</Button>}
+      >
+        {metadataTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <SearchIcon className="text-blue-500" />
+              <span className="font-semibold">{metadataTarget.name}</span>
+              <Tag variant="outline" size="small">{metadataTarget.code}</Tag>
+            </div>
+            {!metadataResult ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                <span className="ml-3 text-gray-500">正在分析元数据...</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="text-xs text-gray-500">记录数</div>
+                    <div className="text-lg font-bold text-blue-600">{metadataResult.record_count?.toLocaleString()}</div>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <div className="text-xs text-gray-500">数据大小</div>
+                    <div className="text-lg font-bold text-green-600">{metadataResult.size_mb} MB</div>
+                  </div>
+                  <div className="p-3 bg-purple-50 rounded-lg">
+                    <div className="text-xs text-gray-500">质量评分</div>
+                    <div className="text-lg font-bold text-purple-600">{metadataResult.quality_score}/100</div>
+                  </div>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <div className="text-xs text-gray-500">最后更新</div>
+                    <div className="text-sm font-medium text-orange-600">{new Date(metadataResult.last_updated).toLocaleDateString('zh-CN')}</div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">字段列表</h4>
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border border-gray-200 px-3 py-2 text-left">字段名</th>
+                        <th className="border border-gray-200 px-3 py-2 text-left">类型</th>
+                        <th className="border border-gray-200 px-3 py-2 text-left">描述</th>
+                        <th className="border border-gray-200 px-3 py-2 text-center">可空</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {metadataResult.fields?.map((field: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="border border-gray-200 px-3 py-2 font-mono text-blue-600">{field.name}</td>
+                          <td className="border border-gray-200 px-3 py-2"><Tag size="small" variant="outline">{field.type}</Tag></td>
+                          <td className="border border-gray-200 px-3 py-2">{field.description}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-center">{field.nullable ? '是' : '否'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </Dialog>
+
+      {/* 摘要分析弹窗 */}
+      <Dialog
+        header="摘要分析"
+        visible={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        width={600}
+        footer={<Button onClick={() => setSummaryOpen(false)}>关闭</Button>}
+      >
+        {summaryTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <BrowseIcon className="text-green-500" />
+              <span className="font-semibold">{summaryTarget.name}</span>
+            </div>
+            {!summaryResult ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full" />
+                <span className="ml-3 text-gray-500">正在分析数据...</span>
+              </div>
+            ) : (
+              <>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="text-sm font-semibold mb-2">数据摘要</h4>
+                  <p className="text-sm text-gray-700 m-0 leading-relaxed">{summaryResult.summary}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">关键指标</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {summaryResult.key_metrics?.map((metric: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                        <span className="text-xs text-gray-600">{metric.label}</span>
+                        <span className="text-sm font-bold text-blue-600">{metric.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {summaryResult.anomalies?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">异常记录</h4>
+                    <div className="space-y-2">
+                      {summaryResult.anomalies.map((anomaly: any, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 p-2 bg-orange-50 rounded">
+                          <Tag theme="warning" size="small">{anomaly.type}</Tag>
+                          <div>
+                            <div className="text-xs text-gray-500">{anomaly.time}</div>
+                            <div className="text-sm">{anomaly.description}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {summaryResult.recommendations?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">优化建议</h4>
+                    <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                      {summaryResult.recommendations.map((rec: string, idx: number) => (
+                        <li key={idx}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </Dialog>
+
+      {/* 安全等级定级弹窗 */}
+      <Dialog
+        header="安全等级定级"
+        visible={securityLevelOpen}
+        onClose={() => setSecurityLevelOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSecurityLevelOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={() => { MessagePlugin.success('安全等级已更新'); setSecurityLevelOpen(false); }}>确认定级</Button>
+          </div>
+        }
+      >
+        {securityLevelTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <LockOnIcon className="text-orange-500" />
+              <span className="font-semibold">{securityLevelTarget.name}</span>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-3 block">选择安全等级</label>
+              <Radio.Group value={securityLevel} onChange={setSecurityLevel}>
+                <div className="flex flex-col gap-3">
+                  <div className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${securityLevel === 'L1' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                    <Radio value="L1">
+                      <div className="ml-2">
+                        <div className="font-medium text-green-700">L1 - 公开数据</div>
+                        <div className="text-xs text-gray-500">可公开访问的数据，无安全限制</div>
+                      </div>
+                    </Radio>
+                  </div>
+                  <div className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${securityLevel === 'L2' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                    <Radio value="L2">
+                      <div className="ml-2">
+                        <div className="font-medium text-blue-700">L2 - 内部数据</div>
+                        <div className="text-xs text-gray-500">仅限授权用户访问，需要身份认证</div>
+                      </div>
+                    </Radio>
+                  </div>
+                  <div className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${securityLevel === 'L3' ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}>
+                    <Radio value="L3">
+                      <div className="ml-2">
+                        <div className="font-medium text-orange-700">L3 - 敏感数据</div>
+                        <div className="text-xs text-gray-500">需要高级权限，访问需审批</div>
+                      </div>
+                    </Radio>
+                  </div>
+                  <div className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${securityLevel === 'L4' ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}>
+                    <Radio value="L4">
+                      <div className="ml-2">
+                        <div className="font-medium text-red-700">L4 - 机密数据</div>
+                        <div className="text-xs text-gray-500">最高安全级别，严格访问控制</div>
+                      </div>
+                    </Radio>
+                  </div>
+                </div>
+              </Radio.Group>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 供给通道配置弹窗 */}
+      <Dialog
+        header="供给通道配置"
+        visible={supplyChannelOpen}
+        onClose={() => setSupplyChannelOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSupplyChannelOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={() => { MessagePlugin.success('供给通道配置已保存'); setSupplyChannelOpen(false); }}>保存配置</Button>
+          </div>
+        }
+      >
+        {supplyChannelTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <ServerIcon className="text-green-500" />
+              <span className="font-semibold">{supplyChannelTarget.name}</span>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">通道类型</label>
+              <Select
+                value={supplyChannelForm.channel_type}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, channel_type: val as string }))}
+                options={[
+                  { value: 'api', label: 'REST API' },
+                  { value: 'mqtt', label: 'MQTT' },
+                  { value: 'kafka', label: 'Kafka' },
+                  { value: 'file', label: '文件共享' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">接入端点</label>
+              <Input
+                value={supplyChannelForm.endpoint}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, endpoint: val }))}
+                placeholder="请输入接入端点URL"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">认证方式</label>
+              <Select
+                value={supplyChannelForm.auth_type}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, auth_type: val as string }))}
+                options={[
+                  { value: 'token', label: 'Token认证' },
+                  { value: 'oauth2', label: 'OAuth2' },
+                  { value: 'api_key', label: 'API Key' },
+                  { value: 'none', label: '无认证' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">限流（次/分钟）</label>
+              <Input
+                type="number"
+                value={String(supplyChannelForm.rate_limit)}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, rate_limit: Number(val) }))}
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 控制协议配置弹窗 */}
+      <Dialog
+        header="控制协议配置"
+        visible={controlProtocolOpen}
+        onClose={() => setControlProtocolOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setControlProtocolOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={() => { MessagePlugin.success('控制协议配置已保存'); setControlProtocolOpen(false); }}>保存配置</Button>
+          </div>
+        }
+      >
+        {controlProtocolTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <SettingIcon className="text-gray-500" />
+              <span className="font-semibold">{controlProtocolTarget.name}</span>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">协议类型</label>
+              <Select
+                value={controlProtocolForm.protocol_type}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, protocol_type: val as string }))}
+                options={[
+                  { value: 'mqtt', label: 'MQTT' },
+                  { value: 'coap', label: 'CoAP' },
+                  { value: 'http', label: 'HTTP Webhook' },
+                  { value: 'websocket', label: 'WebSocket' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Broker地址</label>
+              <Input
+                value={controlProtocolForm.broker_url}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, broker_url: val }))}
+                placeholder="mqtt://broker.example.com:1883"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Topic前缀</label>
+              <Input
+                value={controlProtocolForm.topic_prefix}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, topic_prefix: val }))}
+                placeholder="energy/device001"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">QoS级别</label>
+              <Select
+                value={String(controlProtocolForm.qos)}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, qos: Number(val) }))}
+                options={[
+                  { value: '0', label: 'QoS 0 - 最多一次' },
+                  { value: '1', label: 'QoS 1 - 至少一次' },
+                  { value: '2', label: 'QoS 2 - 恰好一次' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       <LoadingOverlay open={isLoading} />
     </PageContainer>

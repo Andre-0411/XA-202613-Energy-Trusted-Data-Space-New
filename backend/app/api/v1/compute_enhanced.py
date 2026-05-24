@@ -12,7 +12,7 @@ from app.database import get_db
 from app.schemas.common import ApiResponse
 from app.schemas.compute import DagCreate
 from app.utils.deps import get_current_user
-from app.services import fate_integration, compute_sandbox, dag_engine, privacy_router
+from app.services import fate_integration, compute_sandbox, dag_engine, privacy_router, mpc_service, he_service
 
 router = APIRouter()
 
@@ -341,5 +341,178 @@ async def execute_privacy_compute(
         mode=mode,
         config=config,
         db=db,
+    )
+    return ApiResponse(data=result)
+
+
+# ==================== 隐私计算演示 ====================
+
+@router.post("/demo/full", response_model=ApiResponse, summary="运行完整隐私计算演示")
+async def run_full_demo(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    运行完整的隐私计算演示
+
+    演示内容：
+    1. FATE 联邦学习（5方参与，1000条样本，Homo-LR）
+    2. MPC 安全多方计算（3方求和1000次，<10秒）
+    3. 同态加密（CKKS/BFV 密文运算）
+    """
+    from app.services.privacy_demo import run_full_privacy_demo
+
+    result = await run_full_privacy_demo(
+        db=db,
+        user_id=user.get("user_id", ""),
+        organization_id=user.get("organization_id", "00000000-0000-0000-0000-000000000000"),
+    )
+    return ApiResponse(data=result)
+
+
+@router.get("/demo/dataset", response_model=ApiResponse, summary="生成能源数据集")
+async def generate_demo_dataset(
+    num_samples: int = Query(1000, ge=100, le=10000, description="每方样本数"),
+    num_parties: int = Query(5, ge=2, le=10, description="参与方数量"),
+    user: dict = Depends(get_current_user),
+):
+    """
+    生成能源领域联邦学习演示数据集
+
+    用于赛题演示：5方参与，1000条样本
+    """
+    from app.services.privacy_demo import generate_energy_dataset
+
+    dataset = generate_energy_dataset(
+        num_samples=num_samples,
+        num_parties=num_parties,
+    )
+    # 不返回完整数据，只返回元信息
+    return ApiResponse(data={
+        "dataset_name": dataset["dataset_name"],
+        "num_parties": dataset["num_parties"],
+        "num_samples_per_party": dataset["num_samples_per_party"],
+        "num_features": dataset["num_features"],
+        "feature_names": dataset["parties"]["party_0"]["feature_names"],
+        "metadata": dataset["metadata"],
+    })
+
+
+@router.post("/demo/fate", response_model=ApiResponse, summary="FATE联邦学习演示")
+async def run_fate_demo(
+    num_parties: int = Query(5, ge=2, le=10, description="参与方数量"),
+    num_samples: int = Query(1000, ge=100, le=10000, description="每方样本数"),
+    epochs: int = Query(10, ge=1, le=100, description="训练轮次"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    FATE 联邦学习演示
+
+    赛题要求：5方参与，1000条样本，训练时间<5分钟
+    """
+    config = fate_integration.generate_demo_homo_lr_config(
+        num_parties=num_parties,
+        sample_count=num_samples,
+        epochs=epochs,
+    )
+    result = await fate_integration.submit_job(db, config)
+    return ApiResponse(data={
+        "demo": "fate_federated_learning",
+        "config": config,
+        "submission": result,
+    })
+
+
+@router.post("/demo/mpc", response_model=ApiResponse, summary="MPC安全计算演示")
+async def run_mpc_demo(
+    num_iterations: int = Query(1000, ge=100, le=10000, description="迭代次数"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    MPC 安全多方计算演示
+
+    赛题要求：3方求和1000次 < 10秒
+    """
+    result = await mpc_service.run_mpc_demo_3party_sum(db, num_iterations=num_iterations)
+    return ApiResponse(data=result)
+
+
+@router.get("/demo/he/benchmark", response_model=ApiResponse, summary="同态加密性能基准")
+async def run_he_benchmark(
+    scheme: str = Query("ckks", description="HE方案: ckks/bfv"),
+    poly_modulus_degree: int = Query(8192, description="多项式模数维度"),
+    data_size: int = Query(1000, ge=100, le=10000, description="数据大小"),
+    user: dict = Depends(get_current_user),
+):
+    """
+    同态加密性能基准测试
+
+    测试 CKKS/BFV 方案的加密、运算、解密性能
+    """
+    result = await he_service.run_he_benchmark(
+        scheme=scheme,
+        poly_modulus_degree=poly_modulus_degree,
+        data_size=data_size,
+    )
+    return ApiResponse(data=result)
+
+
+@router.post("/demo/he/operate", response_model=ApiResponse, summary="同态加密运算演示")
+async def run_he_demo(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    同态加密运算演示
+
+    演示 CKKS/BFV 方案的密文加法和乘法
+    """
+    result = await he_service.run_he_operation_demo(
+        db=db,
+        user_id=user.get("user_id", ""),
+        organization_id=user.get("organization_id", "00000000-0000-0000-0000-000000000000"),
+    )
+    return ApiResponse(data=result)
+
+
+@router.get("/demo/tee/benchmark", response_model=ApiResponse, summary="TEE性能基准")
+async def run_tee_benchmark(
+    user: dict = Depends(get_current_user),
+):
+    """
+    TEE 性能基准测试
+
+    测试 SM4-GCM、SM3、AES-256-GCM、SGX 飞地模拟性能
+    """
+    from app.services.tee_service import run_tee_performance_benchmark
+
+    result = await run_tee_performance_benchmark()
+    return ApiResponse(data=result)
+
+
+@router.post("/demo/tee/sgx", response_model=ApiResponse, summary="SGX飞地Python执行演示")
+async def run_sgx_demo(
+    python_code: str = Body(..., description="Python代码"),
+    input_data: dict = Body(..., description="输入数据"),
+    memory_size_mb: int = Body(512, description="飞地内存大小(MB)"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    SGX 飞地 Python 代码执行演示
+
+    模拟 Intel SGX + Gramine 环境下的 Python 应用安全执行
+    """
+    from app.services.tee_service import execute_python_in_sgx_enclave
+
+    result = await execute_python_in_sgx_enclave(
+        db=db,
+        user_id=user.get("user_id", ""),
+        organization_id=user.get("organization_id", "00000000-0000-0000-0000-000000000000"),
+        python_code=python_code,
+        input_data=input_data,
+        memory_size_mb=memory_size_mb,
     )
     return ApiResponse(data=result)

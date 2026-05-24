@@ -5,9 +5,10 @@
  * 拆分为 CatalogTree + CatalogTable + CatalogDetail 子组件
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { MessagePlugin } from 'tdesign-react';
+import { MessagePlugin, Dialog, Button, Input, Select, Tag, Steps, Radio } from 'tdesign-react';
 import {
   RefreshIcon, FolderOpenIcon, CheckCircleIcon, TimeIcon, TrendingUpIcon,
+  LockOnIcon, LinkIcon, ServerIcon, SettingIcon, AddIcon, BrowseIcon,
 } from 'tdesign-icons-react';
 import ReactECharts from 'echarts-for-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -85,6 +86,40 @@ const DataCatalogPage: React.FC = () => {
   const [classifyResult, setClassifyResult] = useState<any>(null);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState<boolean>(false);
   const [verifyResult, setVerifyResult] = useState<any>(null);
+
+  // 两级审核流程
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<any>(null);
+  const [reviewStep, setReviewStep] = useState(0);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
+  const [reviewComment, setReviewComment] = useState('');
+
+  // 公开/私有选择
+  const [visibilityDialogOpen, setVisibilityDialogOpen] = useState(false);
+  const [visibilityTarget, setVisibilityTarget] = useState<any>(null);
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+
+  // 供给通道配置
+  const [supplyChannelOpen, setSupplyChannelOpen] = useState(false);
+  const [supplyChannelTarget, setSupplyChannelTarget] = useState<any>(null);
+  const [supplyChannelForm, setSupplyChannelForm] = useState({
+    channel_type: 'api',
+    endpoint: '',
+    auth_type: 'token',
+    rate_limit: 100,
+    enabled: true,
+  });
+
+  // 控制协议配置
+  const [controlProtocolOpen, setControlProtocolOpen] = useState(false);
+  const [controlProtocolTarget, setControlProtocolTarget] = useState<any>(null);
+  const [controlProtocolForm, setControlProtocolForm] = useState({
+    protocol_type: 'mqtt',
+    broker_url: '',
+    topic_prefix: '',
+    qos: 1,
+    retain: false,
+  });
 
   // ===== 弹窗 =====
   const [applyTarget, setApplyTarget] = useState<DataCatalogItem | null>(null);
@@ -246,6 +281,65 @@ const DataCatalogPage: React.FC = () => {
     handleSearch();
   }, [handleSearch]);
 
+  // 两级审核流程
+  const handleReview = useCallback((item: any) => {
+    setReviewTarget(item);
+    setReviewStep(0);
+    setReviewAction('approve');
+    setReviewComment('');
+    setReviewDialogOpen(true);
+  }, []);
+
+  const handleReviewSubmit = useCallback(() => {
+    if (reviewStep === 0) {
+      // 初审通过，进入复审
+      setReviewStep(1);
+      MessagePlugin.success('初审通过，请进行复审');
+    } else {
+      // 复审完成
+      MessagePlugin.success(reviewAction === 'approve' ? '审核通过' : '审核拒绝');
+      setReviewDialogOpen(false);
+    }
+  }, [reviewStep, reviewAction]);
+
+  // 公开/私有选择
+  const handleVisibility = useCallback((item: any) => {
+    setVisibilityTarget(item);
+    setVisibility(item.visibility || 'public');
+    setVisibilityDialogOpen(true);
+  }, []);
+
+  const handleVisibilitySubmit = useCallback(() => {
+    MessagePlugin.success(`已设置为${visibility === 'public' ? '公开' : '私有'}`);
+    setVisibilityDialogOpen(false);
+  }, [visibility]);
+
+  // 供给通道配置
+  const handleSupplyChannel = useCallback((item: any) => {
+    setSupplyChannelTarget(item);
+    setSupplyChannelForm({
+      channel_type: 'api',
+      endpoint: `https://api.example.com/catalog/${item.id}`,
+      auth_type: 'token',
+      rate_limit: 100,
+      enabled: true,
+    });
+    setSupplyChannelOpen(true);
+  }, []);
+
+  // 控制协议配置
+  const handleControlProtocol = useCallback((item: any) => {
+    setControlProtocolTarget(item);
+    setControlProtocolForm({
+      protocol_type: 'mqtt',
+      broker_url: 'mqtt://broker.example.com:1883',
+      topic_prefix: `catalog/${item.id}`,
+      qos: 1,
+      retain: false,
+    });
+    setControlProtocolOpen(true);
+  }, []);
+
   const activeFilterCount = (filterLevel ? 1 : 0) + (filterOrg ? 1 : 0) + filterTags.length;
 
   return (
@@ -355,6 +449,249 @@ const DataCatalogPage: React.FC = () => {
         verifyResult={verifyResult}
         onVerifyClose={() => { setVerifyDialogOpen(false); setVerifyResult(null); }}
       />
+
+      {/* 两级审核流程弹窗 */}
+      <Dialog
+        header="数据目录审核"
+        visible={reviewDialogOpen}
+        onClose={() => setReviewDialogOpen(false)}
+        width={600}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>取消</Button>
+            {reviewStep === 1 && (
+              <Button theme="danger" onClick={() => { setReviewAction('reject'); handleReviewSubmit(); }}>
+                拒绝
+              </Button>
+            )}
+            <Button theme="primary" onClick={handleReviewSubmit}>
+              {reviewStep === 0 ? '初审通过' : '复审通过'}
+            </Button>
+          </div>
+        }
+      >
+        {reviewTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <BrowseIcon className="text-blue-500" />
+              <span className="font-semibold">{reviewTarget.name}</span>
+            </div>
+
+            {/* 审核步骤 */}
+            <Steps current={reviewStep}>
+              <Steps.StepItem title="初审" content="数据质量与完整性检查" />
+              <Steps.StepItem title="复审" content="业务合规性与安全性审核" />
+            </Steps>
+
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-semibold mb-2">审核内容</h4>
+              {reviewStep === 0 ? (
+                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                  <li>数据格式规范性检查</li>
+                  <li>字段完整性验证</li>
+                  <li>数据质量评分 ≥ 80分</li>
+                  <li>元数据信息完整性</li>
+                </ul>
+              ) : (
+                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                  <li>数据安全等级合规</li>
+                  <li>隐私信息脱敏检查</li>
+                  <li>业务授权验证</li>
+                  <li>供给通道配置验证</li>
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">审核意见</label>
+              <Input
+                value={reviewComment}
+                onChange={setReviewComment}
+                placeholder="请输入审核意见（可选）"
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 公开/私有选择弹窗 */}
+      <Dialog
+        header="设置可见性"
+        visible={visibilityDialogOpen}
+        onClose={() => setVisibilityDialogOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setVisibilityDialogOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={handleVisibilitySubmit}>确认设置</Button>
+          </div>
+        }
+      >
+        {visibilityTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <LockOnIcon className="text-orange-500" />
+              <span className="font-semibold">{visibilityTarget.name}</span>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-3 block">选择可见性</label>
+              <Radio.Group value={visibility} onChange={setVisibility}>
+                <div className="flex flex-col gap-3">
+                  <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${visibility === 'public' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                    <Radio value="public">
+                      <div className="ml-2">
+                        <div className="font-medium text-green-700">公开</div>
+                        <div className="text-xs text-gray-500">所有用户可见，可在数据市场浏览和申请</div>
+                      </div>
+                    </Radio>
+                  </div>
+                  <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${visibility === 'private' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                    <Radio value="private">
+                      <div className="ml-2">
+                        <div className="font-medium text-blue-700">私有</div>
+                        <div className="text-xs text-gray-500">仅授权用户可见，需要申请访问权限</div>
+                      </div>
+                    </Radio>
+                  </div>
+                </div>
+              </Radio.Group>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 供给通道配置弹窗 */}
+      <Dialog
+        header="供给通道配置"
+        visible={supplyChannelOpen}
+        onClose={() => setSupplyChannelOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSupplyChannelOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={() => { MessagePlugin.success('供给通道配置已保存'); setSupplyChannelOpen(false); }}>保存配置</Button>
+          </div>
+        }
+      >
+        {supplyChannelTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <ServerIcon className="text-green-500" />
+              <span className="font-semibold">{supplyChannelTarget.name}</span>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">通道类型</label>
+              <Select
+                value={supplyChannelForm.channel_type}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, channel_type: val as string }))}
+                options={[
+                  { value: 'api', label: 'REST API' },
+                  { value: 'mqtt', label: 'MQTT' },
+                  { value: 'kafka', label: 'Kafka' },
+                  { value: 'file', label: '文件共享' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">接入端点</label>
+              <Input
+                value={supplyChannelForm.endpoint}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, endpoint: val }))}
+                placeholder="请输入接入端点URL"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">认证方式</label>
+              <Select
+                value={supplyChannelForm.auth_type}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, auth_type: val as string }))}
+                options={[
+                  { value: 'token', label: 'Token认证' },
+                  { value: 'oauth2', label: 'OAuth2' },
+                  { value: 'api_key', label: 'API Key' },
+                  { value: 'none', label: '无认证' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">限流（次/分钟）</label>
+              <Input
+                type="number"
+                value={String(supplyChannelForm.rate_limit)}
+                onChange={(val) => setSupplyChannelForm(prev => ({ ...prev, rate_limit: Number(val) }))}
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 控制协议配置弹窗 */}
+      <Dialog
+        header="控制协议配置"
+        visible={controlProtocolOpen}
+        onClose={() => setControlProtocolOpen(false)}
+        width={500}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setControlProtocolOpen(false)}>取消</Button>
+            <Button theme="primary" onClick={() => { MessagePlugin.success('控制协议配置已保存'); setControlProtocolOpen(false); }}>保存配置</Button>
+          </div>
+        }
+      >
+        {controlProtocolTarget && (
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <SettingIcon className="text-gray-500" />
+              <span className="font-semibold">{controlProtocolTarget.name}</span>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">协议类型</label>
+              <Select
+                value={controlProtocolForm.protocol_type}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, protocol_type: val as string }))}
+                options={[
+                  { value: 'mqtt', label: 'MQTT' },
+                  { value: 'coap', label: 'CoAP' },
+                  { value: 'http', label: 'HTTP Webhook' },
+                  { value: 'websocket', label: 'WebSocket' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Broker地址</label>
+              <Input
+                value={controlProtocolForm.broker_url}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, broker_url: val }))}
+                placeholder="mqtt://broker.example.com:1883"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Topic前缀</label>
+              <Input
+                value={controlProtocolForm.topic_prefix}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, topic_prefix: val }))}
+                placeholder="catalog/item001"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">QoS级别</label>
+              <Select
+                value={String(controlProtocolForm.qos)}
+                onChange={(val) => setControlProtocolForm(prev => ({ ...prev, qos: Number(val) }))}
+                options={[
+                  { value: '0', label: 'QoS 0 - 最多一次' },
+                  { value: '1', label: 'QoS 1 - 至少一次' },
+                  { value: '2', label: 'QoS 2 - 恰好一次' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       <LoadingOverlay open={isLoading} />
     </PageContainer>

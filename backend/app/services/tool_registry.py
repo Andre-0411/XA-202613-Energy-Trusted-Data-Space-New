@@ -327,10 +327,10 @@ def get_tools_for_agent(agent_type: str, user_permissions: list[str] = None) -> 
     """根据 Agent 类型和用户权限获取可用工具"""
     # Agent 类型与模块映射
     agent_modules = {
-        "query": ["data", "catalog", "metadata", "quality", "market"],
-        "trade": ["product", "contract", "demand", "subscription", "market"],
-        "security": ["security", "evidence", "audit", "policy"],
-        "dispatch": ["compute", "dag", "sandbox", "cluster"],
+        "query": ["data", "catalog", "metadata", "quality", "market", "system", "org"],
+        "trade": ["product", "contract", "demand", "subscription", "market", "blockchain", "system"],
+        "security": ["security", "evidence", "audit", "policy", "blockchain", "system"],
+        "dispatch": ["compute", "dag", "sandbox", "cluster", "data", "system", "org"],
     }
 
     modules = agent_modules.get(agent_type, [])
@@ -342,6 +342,258 @@ def get_tools_for_agent(agent_type: str, user_permissions: list[str] = None) -> 
                 tools.append(entry["func"])
 
     return tools
+
+
+# ==================== 手动查询工具注册 ====================
+
+def _register_manual_query_tools():
+    """注册手动查询工具 — Agent 需要这些工具来读取数据（支持 GET 查询类）"""
+    from langchain_core.tools import tool as _tool_decorator
+
+    # 跳过已注册的手动工具
+    manual_names = {"list_data_assets", "list_data_sources", "list_compute_tasks",
+                    "list_products", "get_system_stats", "query_blockchain_evidence",
+                    "query_security_threats", "list_catalog_registrations", "list_organizations"}
+    if any(n in _tool_registry for n in manual_names):
+        return
+
+    @tool
+    async def list_data_assets(category: str = "", status: str = "", limit: int = 10) -> str:
+        """查询数据资产列表。可按分类(category: 发电/用电/调度/市场/设备状态/地理信息)和状态(status: active/inactive)筛选。返回数据资产的名称、分类、状态和记录数。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.data_asset import DataAsset
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(DataAsset)
+            if category:
+                query = query.where(DataAsset.category.ilike(f"%{category}%"))
+            if status:
+                query = query.where(DataAsset.status == status)
+            query = query.order_by(DataAsset.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            assets = result.scalars().all()
+            return _json.dumps({
+                "total": len(assets),
+                "assets": [{"id": str(a.id), "name": a.name, "category": a.category,
+                            "status": a.status, "record_count": a.record_count}
+                           for a in assets],
+            }, ensure_ascii=False)
+
+    @tool
+    async def list_data_sources(protocol_type: str = "", limit: int = 10) -> str:
+        """查询已注册的数据源列表。可按协议类型(protocol_type: DLMS/Modbus/HTTP/MQTT/OPC-UA/WebSocket)筛选。返回数据源的名称、协议类型和连接状态。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.connector import DataSource
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(DataSource)
+            if protocol_type:
+                query = query.where(DataSource.protocol_type.ilike(f"%{protocol_type}%"))
+            query = query.order_by(DataSource.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            sources = result.scalars().all()
+            return _json.dumps({
+                "total": len(sources),
+                "sources": [{"id": str(s.id), "name": s.name, "protocol_type": s.protocol_type,
+                             "status": s.status} for s in sources],
+            }, ensure_ascii=False)
+
+    @tool
+    async def list_compute_tasks(task_type: str = "", status: str = "", limit: int = 10) -> str:
+        """查询可信计算任务列表。可按任务类型(task_type: FL联邦学习/MPC安全多方计算/TEE可信执行环境/HE同态加密/DP差分隐私/Sandbox沙箱)和状态筛选。返回任务名称、类型、状态和进度。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.compute_task import ComputeTask
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(ComputeTask)
+            if task_type:
+                query = query.where(ComputeTask.task_type == task_type)
+            if status:
+                query = query.where(ComputeTask.status == status)
+            query = query.order_by(ComputeTask.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            tasks = result.scalars().all()
+            return _json.dumps({
+                "total": len(tasks),
+                "tasks": [{"id": str(t.id), "name": t.name, "task_type": t.task_type,
+                           "status": t.status, "progress": t.progress} for t in tasks],
+            }, ensure_ascii=False)
+
+    @tool
+    async def list_products(product_type: str = "", status: str = "published", limit: int = 10) -> str:
+        """查询数据产品市场列表。可按产品类型(product_type)和状态(status: published/draft/archived)筛选。返回产品名称、类型、定价和状态。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.product import DataProduct
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(DataProduct)
+            if product_type:
+                query = query.where(DataProduct.product_type.ilike(f"%{product_type}%"))
+            if status:
+                query = query.where(DataProduct.status == status)
+            query = query.order_by(DataProduct.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            products = result.scalars().all()
+            return _json.dumps({
+                "total": len(products),
+                "products": [{"id": str(p.id), "name": p.name, "product_type": p.product_type,
+                              "pricing": p.pricing, "status": p.status} for p in products],
+            }, ensure_ascii=False)
+
+    @tool
+    async def get_system_stats() -> str:
+        """获取能源可信数据空间系统整体运行统计。返回数据资产总数、计算任务总数、数据产品总数及系统运行状态。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.data_asset import DataAsset
+        from app.models.compute_task import ComputeTask
+        from app.models.product import DataProduct
+        from sqlalchemy import select, func
+
+        async with AsyncSessionLocal() as session:
+            assets_count = (await session.execute(select(func.count(DataAsset.id)))).scalar() or 0
+            tasks_count = (await session.execute(select(func.count(ComputeTask.id)))).scalar() or 0
+            products_count = (await session.execute(select(func.count(DataProduct.id)))).scalar() or 0
+
+            return _json.dumps({
+                "data_assets_count": assets_count,
+                "compute_tasks_count": tasks_count,
+                "data_products_count": products_count,
+                "system_status": "running",
+            }, ensure_ascii=False)
+
+    @tool
+    async def query_blockchain_evidence(status: str = "", limit: int = 10) -> str:
+        """查询区块链存证记录。可按状态(status: confirmed/pending/failed)筛选。返回存证ID、交易哈希、存证类型和时间。用于验证数据完整性和溯源。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.blockchain import EvidenceChain
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(EvidenceChain)
+            if status:
+                query = query.where(EvidenceChain.status == status)
+            query = query.order_by(EvidenceChain.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            evidences = result.scalars().all()
+            return _json.dumps({
+                "total": len(evidences),
+                "evidences": [{"id": str(e.id), "tx_hash": e.tx_hash, "node_type": e.node_type,
+                               "status": e.status, "created_at": e.created_at.isoformat() if e.created_at else None}
+                              for e in evidences],
+            }, ensure_ascii=False)
+
+    @tool
+    async def query_security_threats(severity: str = "", status: str = "", limit: int = 10) -> str:
+        """查询安全威胁事件。可按严重程度(severity: critical/high/medium/low/info)和状态(status: detected/investigating/resolved/dismissed)筛选。返回威胁类型、严重程度、状态和描述。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.security import ThreatEvent
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(ThreatEvent)
+            if severity:
+                query = query.where(ThreatEvent.severity == severity)
+            if status:
+                query = query.where(ThreatEvent.status == status)
+            query = query.order_by(ThreatEvent.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            threats = result.scalars().all()
+            return _json.dumps({
+                "total": len(threats),
+                "threats": [{"id": str(t.id), "threat_type": t.threat_type, "severity": t.severity,
+                             "status": t.status, "description": (t.description or "")[:200]}
+                            for t in threats],
+            }, ensure_ascii=False)
+
+    @tool
+    async def list_catalog_registrations(catalog_type: str = "", security_level: str = "", status: str = "", limit: int = 10) -> str:
+        """查询数据目录登记列表。可按目录类型(catalog_type: api/file/database/service/model)、安全等级(security_level: public/internal/confidential/secret)和状态筛选。返回目录名称、类型、安全等级和可见性。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.catalog import CatalogRegistration
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(CatalogRegistration)
+            if catalog_type:
+                query = query.where(CatalogRegistration.catalog_type == catalog_type)
+            if security_level:
+                query = query.where(CatalogRegistration.security_level == security_level)
+            if status:
+                query = query.where(CatalogRegistration.status == status)
+            query = query.order_by(CatalogRegistration.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            catalogs = result.scalars().all()
+            return _json.dumps({
+                "total": len(catalogs),
+                "catalogs": [{"id": str(c.id), "name": c.name, "catalog_type": c.catalog_type,
+                              "security_level": c.security_level, "visibility": c.visibility,
+                              "status": c.status}
+                             for c in catalogs],
+            }, ensure_ascii=False)
+
+    @tool
+    async def list_organizations(status: str = "", limit: int = 10) -> str:
+        """查询平台注册的机构组织列表。可按状态(status: active/certified/suspended)筛选。返回机构名称、统一社会信用代码和认证状态。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.user import Organization
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            query = select(Organization)
+            if status:
+                query = query.where(Organization.status == status)
+            query = query.order_by(Organization.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            orgs = result.scalars().all()
+            return _json.dumps({
+                "total": len(orgs),
+                "organizations": [{"id": str(o.id), "name": o.name,
+                                   "social_credit_code": getattr(o, "social_credit_code", ""),
+                                   "status": o.status}
+                                  for o in orgs],
+            }, ensure_ascii=False)
+
+    # 注册手动工具
+    manual_tools = {
+        "list_data_assets": (list_data_assets, "data", "查询数据资产列表，支持按分类和状态筛选"),
+        "list_data_sources": (list_data_sources, "data", "查询已注册数据源列表，支持按协议类型筛选"),
+        "list_compute_tasks": (list_compute_tasks, "compute", "查询可信计算任务列表，支持按类型和状态筛选"),
+        "list_products": (list_products, "product", "查询数据产品市场列表，支持按类型和状态筛选"),
+        "get_system_stats": (get_system_stats, "system", "获取系统整体运行统计信息"),
+        "query_blockchain_evidence": (query_blockchain_evidence, "blockchain", "查询区块链存证记录，验证数据完整性"),
+        "query_security_threats": (query_security_threats, "security", "查询安全威胁事件，支持按严重程度筛选"),
+        "list_catalog_registrations": (list_catalog_registrations, "catalog", "查询数据目录登记列表，支持多维度筛选"),
+        "list_organizations": (list_organizations, "org", "查询平台注册机构组织列表"),
+    }
+
+    for name, (func_obj, module, desc) in manual_tools.items():
+        _tool_registry[name] = {
+            "func": func_obj,
+            "module": module,
+            "path": f"manual/{name}",
+            "method": "GET",
+            "description": desc,
+            "params": [],
+            "auto_generated": False,
+        }
+        if module not in _module_tools:
+            _module_tools[module] = []
+        _module_tools[module].append(name)
+
+    logger.info(f"Registered {len(manual_tools)} manual query tools")
 
 
 # ==================== 初始化 ====================
@@ -379,6 +631,9 @@ def initialize_tools(app=None, force: bool = False):
             registered += 1
         except Exception as e:
             logger.warning(f"Failed to generate tool for {route_info['path']}: {e}")
+
+    # 注册手动查询工具（这些工具提供关键的数据查询能力）
+    _register_manual_query_tools()
 
     _initialized = True
     logger.info(f"Tool registry initialized: {registered} tools registered from {len(write_routes)} routes")
