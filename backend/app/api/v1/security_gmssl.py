@@ -18,7 +18,7 @@ router = APIRouter()
 
 class Sm2SignRequest(BaseModel):
     """SM2 签名请求"""
-    private_key: str = Field(description="SM2 私钥（十六进制）")
+    key_id: str = Field(description="密钥ID（引用服务端存储的密钥）")
     public_key: str = Field(description="SM2 公钥（十六进制）")
     data: str = Field(description="待签名数据")
     key_id: str | None = Field(default=None, description="关联密钥 ID")
@@ -41,7 +41,7 @@ class Sm2EncryptRequest(BaseModel):
 
 class Sm2DecryptRequest(BaseModel):
     """SM2 解密请求"""
-    private_key: str = Field(description="SM2 私钥（十六进制）")
+    key_id: str = Field(description="密钥ID（引用服务端存储的密钥）")
     public_key: str = Field(description="SM2 公钥（十六进制）")
     ciphertext: str = Field(description="密文")
     key_id: str | None = Field(default=None, description="关联密钥 ID")

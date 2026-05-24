@@ -152,6 +152,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <FlashlightIcon />,
     path: '/dashboard/scenario/power-dispatch',
     children: [
+      { label: 'AI智能助手', path: '/dashboard/portal/agent-chat' },
       { label: '电网调度优化', path: '/dashboard/scenario/power-dispatch' },
       { label: '新能源消纳管理', path: '/dashboard/scenario/renewable-energy' },
       { label: '虚拟电厂运营', path: '/dashboard/scenario/virtual-power-plant' },
@@ -164,6 +165,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <NotificationIcon />,
     path: '/dashboard/portal/announcements',
     children: [
+      { label: '机构认证', path: '/dashboard/portal/org-certification' },
       { label: '个人中心', path: '/dashboard/portal/profile' },
       { label: '公告通知', path: '/dashboard/portal/announcements' },
     ],

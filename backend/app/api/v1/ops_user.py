@@ -19,7 +19,7 @@ router = APIRouter()
 
 class ResetPasswordBody(BaseModel):
     """重置密码请求体"""
-    new_password: Optional[str] = Field(default=None, description="新密码（留空则自动生成）", min_length=6)
+    new_password: Optional[str] = Field(default=None, description="新密码（留空则自动生成）", min_length=8)
 
 
 @router.get("", response_model=ApiResponse[PaginatedResponse[UserResponse]])

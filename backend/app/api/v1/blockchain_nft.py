@@ -6,6 +6,16 @@ import uuid
 import logging
 from typing import Optional
 
+from pydantic import BaseModel, Field
+
+class NftMintRequest(BaseModel):
+    asset_id: str = Field(..., description="资产ID")
+    name: str = Field(..., description="NFT名称")
+    description: str = Field(default="", description="NFT描述")
+    metadata_uri: str = Field(default="", description="元数据URI")
+    creator_did: str = Field(default="", description="创建者DID")
+
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,8 +48,8 @@ async def 铸造nft(
 ):
     """铸造NFT — 前端发送 {asset_id, metadata_uri}"""
     user_did: str = user.get("user_id", "")
-    asset_id: str = body.get("asset_id", "")
-    metadata_uri: str = body.get("metadata_uri", "")
+    asset_id = request.asset_id
+    metadata_uri = request.metadata_uri
 
     if not asset_id or not metadata_uri:
         return ApiResponse(code=2003, message="asset_id 和 metadata_uri 为必填项", data=None)
