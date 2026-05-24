@@ -1,0 +1,181 @@
+classDiagram
+    class IdentityRegistry {
+        -mapping~address, Identity~ identities
+        -mapping~string, address~ didToAddress
+        -address admin
+        +registerIdentity(string did, string publicKey, uint8 role)
+        +revokeIdentity(string did)
+        +verifyIdentity(string did) bool
+        +getIdentity(string did) Identity
+        +updatePublicKey(string did, string newPublicKey)
+        +isRegistered(string did) bool
+        +transferAdmin(address newAdmin)
+        +IdentityRegistered(string did, address addr, uint8 role)
+        +IdentityRevoked(string did)
+    }
+
+    class DataAssetNFT {
+        -mapping~uint256, AssetMetadata~ assetMetadata
+        -uint256 nextTokenId
+        -address identityRegistry
+        -string baseURI
+        +mint(address to, string assetId, string category, uint8 level, bytes32 evidenceHash, string certificateURI) uint256
+        +burn(uint256 tokenId)
+        +getAssetMetadata(uint256 tokenId) AssetMetadata
+        +updateMetadata(uint256 tokenId, string certificateURI)
+        +tokenOfAsset(string assetId) uint256
+        +exists(string assetId) bool
+        +setBaseURI(string baseURI)
+        +AssetMinted(uint256 tokenId, string assetId, string category, uint8 level)
+        +AssetBurned(uint256 tokenId)
+    }
+
+    class AccessControl {
+        -mapping~uint256, AccessPolicy~ policies
+        -mapping~address, mapping~uint256, bool~ grants
+        -address identityRegistry
+        +createPolicy(uint256 tokenId, uint8 accessLevel, uint256 expiresAt, string conditions)
+        +grantAccess(uint256 tokenId, address grantee, uint256 policyId)
+        +revokeAccess(uint256 tokenId, address grantee)
+        +checkAccess(uint256 tokenId, address account) bool
+        +getPolicy(uint256 policyId) AccessPolicy
+        +updatePolicy(uint256 policyId, uint8 accessLevel, uint256 expiresAt)
+        +AccessGranted(uint256 tokenId, address grantee, uint256 policyId)
+        +AccessRevoked(uint256 tokenId, address grantee)
+        +PolicyCreated(uint256 policyId, uint256 tokenId)
+    }
+
+    class UsageLogger {
+        -mapping~bytes32, UsageRecord~ records
+        -bytes32[] recordIds
+        -address identityRegistry
+        -bytes32 lastHash
+        +logUsage(string nodeType, string resourceId, string resourceType, bytes32 dataHash, bytes evidenceData)
+        +verifyRecord(bytes32 recordId) bool
+        +getRecord(bytes32 recordId) UsageRecord
+        +getRecordsByResource(string resourceId) bytes32[]
+        +getRecordCount() uint256
+        +getLastHash() bytes32
+        +UsageLogged(bytes32 recordId, string nodeType, string resourceId, bytes32 dataHash, bytes32 prevHash, uint256 timestamp)
+    }
+
+    class AutoSettlement {
+        -mapping~uint256, SettlementRecord~ settlements
+        -uint256 nextSettlementId
+        -address identityRegistry
+        -uint256 platformFeeRate
+        -mapping~string, BillingRule~ billingRules
+        +createSettlement(string subscriptionId, uint256 amount, string billingPeriod, address payer, address payee)
+        +confirmSettlement(uint256 settlementId)
+        +disputeSettlement(uint256 settlementId, string reason)
+        +resolveDispute(uint256 settlementId, bool approve)
+        +setBillingRule(string planType, uint256 rate)
+        +getSettlement(uint256 settlementId) SettlementRecord
+        +getSettlementsBySubscription(string subscriptionId) uint256[]
+        +SettlementCreated(uint256 settlementId, string subscriptionId, uint256 amount)
+        +SettlementConfirmed(uint256 settlementId, bytes32 txHash)
+        +SettlementDisputed(uint256 settlementId, string reason)
+    }
+
+    class ComplianceAudit {
+        -mapping~bytes32, AuditRecord~ audits
+        -bytes32[] auditIds
+        -address admin
+        +submitAudit(string auditType, string targetId, bytes32 evidenceHash, string result, string auditor)
+        +approveAudit(bytes32 auditId)
+        +rejectAudit(bytes32 auditId, string reason)
+        +getAudit(bytes32 auditId) AuditRecord
+        +getAuditsByTarget(string targetId) bytes32[]
+        +getAuditCount() uint256
+        +AuditSubmitted(bytes32 auditId, string auditType, string targetId, uint256 timestamp)
+        +AuditApproved(bytes32 auditId)
+        +AuditRejected(bytes32 auditId, string reason)
+    }
+
+    class FiscoWeb3Client {
+        -Web3 web3
+        -dict~str, Contract~ contracts
+        -str group_id
+        -bool sm_crypto
+        +__init__(config: FiscoConfig)
+        +deploy_contract(abi, bytecode, args) str
+        +call_contract(address, method, args) Any
+        +send_transaction(address, method, args, account) dict
+        +get_transaction_receipt(tx_hash) dict
+        +get_block(block_number) dict
+        +get_block_number() int
+        +get_peer_count() int
+        +watch_event(address, event_name, callback)
+        +load_contract(address, abi) Contract
+        +close()
+    }
+
+    class ContractRegistry {
+        -dict~str, ContractInfo~ registered_contracts
+        -AsyncSession db
+        +__init__(db: AsyncSession)
+        +register(address, name, abi, version)
+        +get_contract(name) ContractInfo
+        +get_all() list~ContractInfo~
+        +update_address(name, new_address)
+        +get_abi(name) list
+    }
+
+    class ContractDeployService {
+        -FiscoWeb3Client web3_client
+        -ContractRegistry registry
+        -AsyncSession db
+        +deploy_identity_registry(account) DeployedContract
+        +deploy_data_asset_nft(identity_addr, account) DeployedContract
+        +deploy_access_control(identity_addr, nft_addr, account) DeployedContract
+        +deploy_usage_logger(identity_addr, account) DeployedContract
+        +deploy_auto_settlement(identity_addr, account) DeployedContract
+        +deploy_compliance_audit(account) DeployedContract
+        +deploy_all(account) dict
+        +get_deployment_status() dict
+    }
+
+    class BlockchainEvidenceServiceEnhanced {
+        -FiscoWeb3Client web3_client
+        -ContractRegistry registry
+        +submit_evidence(db, request) EvidenceResponse
+        +verify_evidence_on_chain(db, evidence_id) dict
+        +get_chain_records(resource_id) list
+        +get_evidence_chain_with_proof(db, resource_id) list
+    }
+
+    class BlockchainNftServiceEnhanced {
+        -FiscoWeb3Client web3_client
+        -ContractRegistry registry
+        +mint_nft(db, request, user_did) NftResponse
+        +get_nft_on_chain_metadata(token_id) dict
+        +transfer_nft(db, token_id, request, owner) NftResponse
+    }
+
+    class BlockchainSettleServiceEnhanced {
+        -FiscoWeb3Client web3_client
+        -ContractRegistry registry
+        +create_settlement(db, request, user_did) dict
+        +confirm_settlement(settlement_id) dict
+        +dispute_settlement(settlement_id, reason) dict
+        +get_settlement_on_chain(settlement_id) dict
+    }
+
+    %% 合约依赖关系
+    IdentityRegistry <|-- DataAssetNFT : uses
+    IdentityRegistry <|-- AccessControl : uses
+    IdentityRegistry <|-- UsageLogger : uses
+    IdentityRegistry <|-- AutoSettlement : uses
+    AccessControl <|-- UsageLogger : checks
+    DataAssetNFT <|-- AccessControl : references
+    DataAssetNFT <|-- AutoSettlement : references
+
+    %% 后端服务依赖关系
+    FiscoWeb3Client <.. ContractDeployService : uses
+    ContractRegistry <.. ContractDeployService : uses
+    ContractRegistry <.. BlockchainEvidenceServiceEnhanced : uses
+    ContractRegistry <.. BlockchainNftServiceEnhanced : uses
+    ContractRegistry <.. BlockchainSettleServiceEnhanced : uses
+    FiscoWeb3Client <.. BlockchainEvidenceServiceEnhanced : uses
+    FiscoWeb3Client <.. BlockchainNftServiceEnhanced : uses
+    FiscoWeb3Client <.. BlockchainSettleServiceEnhanced : uses

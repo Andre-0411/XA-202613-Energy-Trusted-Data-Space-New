@@ -1,0 +1,74 @@
+# ============================================================
+# 面向能源可信数据空间 - Python 依赖
+# ============================================================
+
+# 核心框架
+fastapi[all]>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+
+# 数据库
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+redis[hiredis]>=5.2.0
+motor>=3.6.0
+
+# 对象存储
+minio>=7.2.12
+
+# 消息队列
+paho-mqtt>=2.1.0
+aio-pika>=9.3.0
+celery>=5.3.0
+
+# 网络/HTTP
+httpx>=0.28.1
+websockets>=14.1
+
+# 安全/加密
+python-jose[cryptography]>=3.3.0
+passlib>=1.7.4
+gmssl>=3.2.2
+pyotp>=2.9.0
+starlette-csrf>=0.2.0
+
+# 数据处理
+python-multipart>=0.0.17
+openpyxl>=3.1.5
+pandas>=2.1.0
+
+# 配置
+python-dotenv>=1.0.1
+
+# 监控
+prometheus-client>=0.21.0
+
+# AI/LLM
+openai>=1.0.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+
+# 同态加密
+tenseal>=0.3.14
+
+# 密码学增强（TEE真实实现）
+cryptography>=44.0.0
+
+# 邮件
+email-validator>=2.2.0
+
+# 异步支持
+anyio>=3.7.0
+trio>=0.22.0
+
+# 测试
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# 文档
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0

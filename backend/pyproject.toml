@@ -1,0 +1,49 @@
+[project]
+name = "energy-trusted-data-space"
+version = "1.0.0"
+description = "面向能源可信数据空间的'一门户五中心'系统"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "Proprietary"}
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["app"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Marker definitions
+markers = [
+    "unit: unit tests",
+    "integration: integration tests",
+    "performance: performance tests",
+    "security: security tests",
+    "slow: slow tests",
+]
+
+# Logging
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+# Test discovery
+norecursedirs = [".git", ".tox", ".eggs", "*.egg", "build", "dist", "*.pyc", "__pycache__", "node_modules"]
+
+# Default options
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

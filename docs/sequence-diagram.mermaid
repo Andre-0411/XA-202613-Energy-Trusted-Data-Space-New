@@ -1,0 +1,114 @@
+sequenceDiagram
+    participant U as 用户
+    participant ML as MainLayout
+    participant SB as SidebarMenu
+    participant HB as HeaderBar
+    participant DT as DataTable
+    participant FD as FormDialog
+    participant API as DataAssetService
+    participant DB as PostgreSQL
+
+    Note over U, DB: 应用初始化流程
+
+    U->>ML: 访问应用
+    ML->>ML: 读取 appStore.themeMode
+    ML->>ML: 应用 TDesign 主题 CSS Variables
+    ML->>SB: 渲染侧边栏菜单
+    ML->>HB: 渲染顶部导航栏
+    ML->>ML: 渲染 <Outlet />
+
+    Note over U, DB: 数据资产列表查询流程
+
+    U->>SB: 点击"数据资产"菜单
+    SB->>ML: navigate('/dashboard/data/assets')
+    ML->>DT: 渲染 DataTable 组件
+    DT->>API: getDataAssets({ page: 1, pageSize: 20 })
+    API->>DB: SELECT * FROM data_assets WHERE status != 'deleted'
+    DB-->>API: 返回资产列表
+    API-->>DT: 返回 PaginatedResponse<DataAssetResponse>
+    DT->>DT: 渲染表格数据
+
+    Note over U, DB: 创建数据资产流程
+
+    U->>FD: 点击"新建资产"按钮
+    FD->>FD: 打开表单弹窗
+    U->>FD: 填写资产信息
+    U->>FD: 点击"提交"
+    FD->>API: createDataAsset(DataAssetCreate)
+    API->>DB: INSERT INTO data_assets (...)
+    DB-->>API: 返回新创建的资产
+    API->>API: 自动生成原创性证明存证
+    API->>DB: INSERT INTO blockchain_evidence (...)
+    API-->>FD: 返回 DataAssetResponse
+    FD->>DT: 刷新表格数据
+    FD->>U: 显示成功消息
+
+    Note over U, DB: 数据资产预览流程
+
+    U->>DT: 点击资产"预览"按钮
+    DT->>API: previewAssetData(id, 10, 'json')
+    API->>DB: SELECT * FROM data_assets WHERE id = ?
+    DB-->>API: 返回资产信息
+    API->>API: 生成脱敏预览数据
+    API-->>DT: 返回 PreviewData
+    DT->>U: 显示预览弹窗
+
+    Note over U, DB: 数据质量检查流程
+
+    U->>DT: 点击资产"质量检查"按钮
+    DT->>API: triggerQualityCheck(assetId, ['completeness', 'accuracy'])
+    API->>DB: SELECT * FROM data_assets WHERE id = ?
+    DB-->>API: 返回资产信息
+    API->>API: 计算质量维度分数
+    API->>DB: INSERT INTO data_quality_reports (...)
+    DB-->>API: 返回质量报告
+    API-->>DT: 返回 QualityReportResponse
+    DT->>U: 显示质量报告
+
+    Note over U, DB: HSM 密钥管理流程
+
+    U->>SB: 点击"密钥管理"菜单
+    SB->>ML: navigate('/dashboard/security/keys')
+    ML->>DT: 渲染密钥列表表格
+    DT->>API: listKeys({ page: 1, pageSize: 20 })
+    API->>DB: SELECT * FROM key_stores WHERE status = 'active'
+    DB-->>API: 返回密钥列表
+    API-->>DT: 返回 PaginatedResponse<HsmKeyResponse>
+    DT->>DT: 渲染密钥表格
+
+    U->>FD: 点击"生成密钥"按钮
+    FD->>FD: 打开密钥生成表单
+    U->>FD: 选择算法(SM2)和用途
+    U->>FD: 点击"生成"
+    FD->>API: generateKey(algorithm: 'SM2', keySize: 256)
+    API->>API: 生成密钥对
+    API->>DB: INSERT INTO key_stores (...)
+    DB-->>API: 返回新密钥
+    API-->>FD: 返回 HsmKeyResponse
+    FD->>DT: 刷新密钥列表
+    FD->>U: 显示成功消息
+
+    Note over U, DB: 计算基准测试流程
+
+    U->>SB: 点击"性能基准"菜单
+    SB->>ML: navigate('/dashboard/compute/benchmark')
+    ML->>DT: 渲染基准测试页面
+    DT->>API: getBenchmarkSummary()
+    API->>DB: SELECT * FROM compute_benchmarks ORDER BY created_at DESC LIMIT 10
+    DB-->>API: 返回历史基准数据
+    API-->>DT: 返回 BenchmarkSummary
+    DT->>DT: 渲染图表和统计数据
+
+    U->>FD: 点击"运行基准测试"按钮
+    FD->>FD: 打开测试配置表单
+    U->>FD: 选择算法和迭代次数
+    U->>FD: 点击"开始测试"
+    FD->>API: runBenchmark(algorithms: ['MPC', 'TEE'], iterations: 10)
+    API->>DB: 查询历史计算任务性能数据
+    DB-->>API: 返回任务数据
+    API->>API: 计算基准指标
+    API->>DB: INSERT INTO compute_benchmarks (...)
+    DB-->>API: 返回基准结果
+    API-->>FD: 返回 BenchmarkResponse
+    FD->>DT: 更新图表和统计数据
+    FD->>U: 显示测试完成消息

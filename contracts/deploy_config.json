@@ -1,0 +1,48 @@
+{
+  "network": {
+    "rpc_url": "http://127.0.0.1:8545",
+    "chain_id": 1,
+    "group_id": 1
+  },
+  "account": {
+    "address": "0x...",
+    "private_key": "..."
+  },
+  "contracts": {
+    "IdentityRegistry": {
+      "address": null,
+      "deployed_at": null,
+      "version": "1.0.0"
+    },
+    "DataAssetNFT": {
+      "address": null,
+      "deployed_at": null,
+      "version": "1.0.0",
+      "dependencies": ["IdentityRegistry"]
+    },
+    "AccessControl": {
+      "address": null,
+      "deployed_at": null,
+      "version": "1.0.0",
+      "dependencies": ["IdentityRegistry", "DataAssetNFT"]
+    },
+    "UsageLogger": {
+      "address": null,
+      "deployed_at": null,
+      "version": "1.0.0",
+      "dependencies": ["IdentityRegistry"]
+    },
+    "AutoSettlement": {
+      "address": null,
+      "deployed_at": null,
+      "version": "1.0.0",
+      "dependencies": ["IdentityRegistry"]
+    },
+    "ComplianceAudit": {
+      "address": null,
+      "deployed_at": null,
+      "version": "1.0.0",
+      "dependencies": []
+    }
+  }
+}

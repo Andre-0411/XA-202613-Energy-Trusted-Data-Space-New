@@ -1,0 +1,25 @@
+============================================================
+Full Backend Module Test
+============================================================
+
+--- Auth ---
+[LOGIN] Status=200
+  Token OK (616 chars)
+
+--- Blockchain ---
+[FAIL] 区块链-区块查询 -> 404
+  {"detail":"Not Found"}
+[FAIL] 区块链-交易查询 -> 404
+  {"detail":"Not Found"}
+[PASS] 区块链-存证列表 -> 200
+[PASS] 区块链-智能合约 -> 200
+[FAIL] 区块链-共识状态 -> 404
+  {"detail":"Not Found"}
+[PASS] 跨链-链列表 -> 200
+[PASS] 跨链-交易记录 -> 200
+[PASS] 结算列表 -> 200
+
+--- Federated Learning ---
+[PASS] FL模型列表 -> 200
+[PASS] FATE任务 -> 200
+[PASS] FATE算法 -> 200

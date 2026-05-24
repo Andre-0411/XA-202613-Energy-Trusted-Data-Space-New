@@ -1,0 +1,29 @@
+============================================================
+Full Backend Module Test (Fixed Routes)
+============================================================
+
+--- Auth ---
+[LOGIN] Status=200
+  Token OK (616 chars)
+  User ID from token: 5f4a57ac-fb95-40e6-8028-587734d9b705
+
+--- Blockchain ---
+[PASS] 区块链-存证列表 -> 200
+[PASS] 区块链-智能合约列表 -> 200
+[PASS] 区块链-链状态 -> 200
+[PASS] 区块链-FISCO共识 -> 200
+[PASS] 区块链-交易记录 -> 200
+[PASS] 跨链-链列表 -> 200
+[PASS] 跨链-交易记录 -> 200
+[FAIL] 结算列表 -> 405
+  {"detail":"Method Not Allowed"}
+
+--- Federated Learning ---
+[PASS] FL模型列表 -> 200
+[PASS] FATE任务 -> 200
+[PASS] FATE算法 -> 200
+[PASS] FATE组件 -> 200
+
+--- Privacy Computing ---
+[PASS] MPC协议 -> 200
+[PASS] TEE实例 -> 200

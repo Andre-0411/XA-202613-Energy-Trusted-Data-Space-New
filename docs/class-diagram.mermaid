@@ -1,0 +1,139 @@
+classDiagram
+    class MainLayout {
+        +drawerOpen: boolean
+        +themeMode: string
+        +tabs: Tab[]
+        +activeTabKey: string
+        +breadcrumbs: BreadcrumbItem[]
+        +handleLogout(): void
+        +toggleTheme(): void
+        +addTab(tab: Tab): void
+        +removeTab(key: string): void
+    }
+
+    class SidebarMenu {
+        +navItems: NavItem[]
+        +expandedMenus: Set~string~
+        +activeParent: string
+        +toggleMenuExpand(key: string): void
+        +navigateTo(path: string): void
+    }
+
+    class HeaderBar {
+        +breadcrumbs: BreadcrumbItem[]
+        +notifications: Notification[]
+        +user: User
+        +handleUserMenuOpen(): void
+        +handleLogout(): void
+    }
+
+    class PageHeader {
+        +title: string
+        +subtitle?: string
+        +breadcrumbs?: BreadcrumbItem[]
+        +actions?: PageAction[]
+        +iconActions?: IconAction[]
+        +rightContent?: ReactNode
+    }
+
+    class DataTable {
+        +data: any[]
+        +columns: Column[]
+        +pagination: Pagination
+        +sortable: boolean
+        +filterable: boolean
+        +onPageChange(page: number): void
+        +onSort(sort: Sort): void
+    }
+
+    class FormDialog {
+        +open: boolean
+        +title: string
+        +fields: Field[]
+        +onSubmit(data: any): void
+        +onCancel(): void
+    }
+
+    class StatusTag {
+        +status: string
+        +color?: string
+        +showDot: boolean
+        +label?: string
+    }
+
+    class ConfirmDialog {
+        +open: boolean
+        +title: string
+        +message: string
+        +type: ConfirmDialogType
+        +onConfirm(): void
+        +onCancel(): void
+    }
+
+    class AppStore {
+        +themeMode: 'light' | 'dark'
+        +tabs: Tab[]
+        +activeTabKey: string
+        +notifications: Notification[]
+        +toggleTheme(): void
+        +addTab(tab: Tab): void
+        +removeTab(key: string): void
+        +setActiveTabKey(key: string): void
+    }
+
+    class AuthStore {
+        +user: User | null
+        +token: string | null
+        +isAuthenticated: boolean
+        +login(credentials: LoginRequest): void
+        +logout(): void
+        +refreshToken(): void
+    }
+
+    class DataAssetService {
+        +listDataAssets(params: PaginationParams): Promise~PaginatedResponse~DataAssetResponse~~
+        +createDataAsset(data: DataAssetCreate): Promise~DataAssetResponse~
+        +getDataAsset(id: string): Promise~DataAssetResponse~
+        +updateDataAsset(id: string, data: DataAssetCreate): Promise~DataAssetResponse~
+        +deleteDataAsset(id: string): Promise~void~
+        +previewAssetData(id: string, limit: number, format: string): Promise~PreviewData~
+    }
+
+    class QualityService {
+        +listQualityReports(params: PaginationParams): Promise~PaginatedResponse~QualityReportResponse~~
+        +triggerQualityCheck(assetId: string, dimensions: string[]): Promise~QualityReportResponse~
+        +getQualityStatistics(): Promise~QualityStatistics~
+    }
+
+    class HsmService {
+        +generateKey(algorithm: string, keySize: number): Promise~HsmKeyResponse~
+        +listKeys(params: PaginationParams): Promise~PaginatedResponse~HsmKeyResponse~~
+        +sign(keyId: string, data: string): Promise~HsmSignResponse~
+        +verify(keyId: string, data: string, signature: string): Promise~HsmVerifyResponse~
+        +encrypt(keyId: string, plaintext: string): Promise~HsmEncryptResponse~
+        +decrypt(keyId: string, ciphertext: string): Promise~HsmDecryptResponse~
+    }
+
+    class BenchmarkService {
+        +runBenchmark(algorithms: string[], iterations: number): Promise~BenchmarkResponse~
+        +listBenchmarks(limit: number, offset: number): Promise~BenchmarkList~
+        +getBenchmarkSummary(): Promise~BenchmarkSummary~
+        +getTrendData(algorithm?: string, limit: number): Promise~TrendData~
+    }
+
+    MainLayout --> SidebarMenu : contains
+    MainLayout --> HeaderBar : contains
+    MainLayout --> AppStore : uses
+    MainLayout --> AuthStore : uses
+    SidebarMenu --> PageHeader : may contain
+    HeaderBar --> StatusTag : displays
+
+    DataAssetService --> MainLayout : data flows to
+    QualityService --> MainLayout : data flows to
+    HsmService --> MainLayout : data flows to
+    BenchmarkService --> MainLayout : data flows to
+
+    DataTable --> DataAssetService : displays data from
+    DataTable --> QualityService : displays data from
+    FormDialog --> DataAssetService : submits to
+    ConfirmDialog --> DataAssetService : confirms actions

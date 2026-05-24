@@ -1,0 +1,97 @@
+============================================================
+Full Backend Module Test
+============================================================
+
+--- Auth ---
+[LOGIN] Status=200
+  Token OK (616 chars)
+
+--- Blockchain ---
+[FAIL] 区块链-区块查询 -> 404
+  {"detail":"Not Found"}
+[FAIL] 区块链-交易查询 -> 404
+  {"detail":"Not Found"}
+[PASS] 区块链-存证列表 -> 200
+[PASS] 区块链-智能合约 -> 200
+[FAIL] 区块链-共识状态 -> 404
+  {"detail":"Not Found"}
+[PASS] 跨链-链列表 -> 200
+[PASS] 跨链-交易记录 -> 200
+[PASS] 结算列表 -> 200
+
+--- Federated Learning ---
+[PASS] FL模型列表 -> 200
+[PASS] FATE任务 -> 200
+[PASS] FATE算法 -> 200
+[PASS] FATE组件 -> 200
+
+--- Privacy Computing ---
+[PASS] MPC协议 -> 200
+[PASS] TEE实例 -> 200
+[PASS] HE方案 -> 200
+[PASS] HE密钥 -> 200
+[PASS] DP配置 -> 200
+
+--- Data Center ---
+[PASS] 数据源 -> 200
+[PASS] 数据资产 -> 200
+[PASS] 数据目录 -> 200
+[PASS] 数据质量报告 -> 200
+[FAIL] 数据质量统计 -> 500
+  Internal Server Error
+[PASS] 数据市场资产 -> 200
+[PASS] 数据市场分类 -> 200
+[PASS] 数据市场统计 -> 200
+
+--- Connectors ---
+[FAIL] 连接器列表 -> 404
+  {"detail":"Not Found"}
+[FAIL] 连接器状态摘要 -> 404
+  {"detail":"Not Found"}
+[FAIL] 文件集 -> 404
+  {"detail":"Not Found"}
+
+--- Contracts ---
+[PASS] 合约列表 -> 200
+[FAIL] 合约统计 -> 500
+  Internal Server Error
+
+--- Organizations ---
+[PASS] 组织角色 -> 200
+[PASS] 组织认证 -> 200
+
+--- Workflow ---
+[FAIL] 工作流列表 -> 500
+  Internal Server Error
+
+--- Portal ---
+[FAIL] 门户仪表盘 -> 422
+  {"detail":[{"type":"missing","loc":["query","user_id"],"msg":"Field required","input":null}]}
+[PASS] 门户活动 -> 200
+[FAIL] 门户通知 -> 422
+  {"detail":[{"type":"missing","loc":["query","user_id"],"msg":"Field required","input":null}]}
+
+--- Monitor ---
+[FAIL] 监控状态 -> 404
+  {"detail":"Not Found"}
+[FAIL] 监控告警 -> 404
+  {"detail":"Not Found"}
+
+--- Product Market ---
+[FAIL] 产品市场搜索 -> 500
+  Internal Server Error
+[FAIL] 产品订阅 -> 500
+  Internal Server Error
+
+--- Compute ---
+[PASS] 计算任务 -> 200
+[PASS] 计算代理历史 -> 200
+[PASS] 集群节点 -> 200
+[PASS] 集群状态 -> 200
+
+--- SSO ---
+[PASS] SSO提供商 -> 200
+
+============================================================
+Results: PASS=31 FAIL=15
+============================================================
