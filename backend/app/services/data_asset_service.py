@@ -1,13 +1,13 @@
 """
 数据资产管理服务
-资产CRUD + 分类分级执行 + 发布至目录 + 边缘预处理触发 + NFT关联管理
+资产CRUD + 分类分级执行 + 发布至目录 + 边缘预处理触发 + NFT关联管理 + 统计分析
 """
 import uuid
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.data_asset import DataAsset, DataSource
@@ -321,3 +321,68 @@ async def get_nft_info(
         "tx_hash": nft.tx_hash,
         "block_number": nft.block_number,
     }
+
+
+async def get_asset_statistics(db: AsyncSession) -> dict:
+    """
+    获取数据资产统计
+
+    Returns:
+        包含资产总数、各类型数量、各状态数量的字典
+    """
+    # 资产总数（不含已删除）
+    total = (await db.execute(
+        select(func.count()).select_from(DataAsset).where(
+            DataAsset.status != "deleted"
+        )
+    )).scalar() or 0
+
+    # 各类型数量
+    category_result = await db.execute(
+        select(DataAsset.category, func.count())
+        .where(DataAsset.status != "deleted")
+        .group_by(DataAsset.category)
+    )
+    by_category = {row[0]: row[1] for row in category_result.all()}
+
+    # 各状态数量
+    status_result = await db.execute(
+        select(DataAsset.status, func.count())
+        .group_by(DataAsset.status)
+    )
+    by_status = {row[0]: row[1] for row in status_result.all()}
+
+    return {
+        "total": total,
+        "by_category": by_category,
+        "by_status": by_status,
+    }
+
+
+async def get_asset_trend(db: AsyncSession, days: int = 30) -> list[dict]:
+    """
+    获取数据资产增长趋势
+
+    Args:
+        db: 异步数据库会话
+        days: 查询天数，默认 30
+
+    Returns:
+        每日新增资产数列表，每项包含 date 和 count
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    result = await db.execute(
+        select(
+            func.date(DataAsset.created_at).label("date"),
+            func.count().label("count"),
+        )
+        .where(DataAsset.created_at >= cutoff)
+        .group_by(func.date(DataAsset.created_at))
+        .order_by(func.date(DataAsset.created_at))
+    )
+
+    return [
+        {"date": str(row.date), "count": row.count}
+        for row in result.all()
+    ]

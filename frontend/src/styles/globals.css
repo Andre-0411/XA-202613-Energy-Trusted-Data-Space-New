@@ -1,0 +1,42 @@
+/* 全局CSS工具类 */
+
+/* 卡片hover效果 */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* 渐变背景 */
+.gradient-primary {
+  background: linear-gradient(135deg, #165DFF 0%, #0FC6C2 100%);
+}
+
+.gradient-dark {
+  background: linear-gradient(135deg, #0A1628 0%, #1A3A5C 100%);
+}
+
+/* 统计数字 */
+.stat-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #165DFF;
+}
+
+/* 区块标题 */
+.section-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1D2129;
+  text-align: center;
+}
+
+.section-subtitle {
+  font-size: 16px;
+  color: #86909C;
+  text-align: center;
+  margin-top: 8px;
+}

@@ -1,57 +1,47 @@
 /**
- * ProductsSection - 数据产品与服务区域
+ * ProductsSection - 核心数据服务区域
+ * 6个产品卡片，3列grid布局
  */
 import React from 'react';
-import { Tag } from 'tdesign-react';
 import { useNavigate } from 'react-router-dom';
-import {
-  FlashlightIcon, SunnyIcon, ThunderIcon,
-  ServerIcon, InstitutionIcon, PlantumlIcon,
-} from 'tdesign-icons-react';
 
-/* ===== 数据产品 ===== */
-const DATA_PRODUCTS = [
+/* ===== 产品数据 ===== */
+const PRODUCTS = [
   {
-    icon: <FlashlightIcon />,
-    title: '电网运行数据',
-    desc: '输变电设备运行状态、负荷数据、电网拓扑、调度指令等核心电网数据',
-    count: '42项',
-    color: '#1976d2',
+    icon: '📋',
+    title: '数据资产登记',
+    desc: '提供数据资产的确权、登记、存证服务，保障数据资产的合法性和可追溯性。',
+    color: '#165DFF',
   },
   {
-    icon: <SunnyIcon />,
-    title: '新能源数据',
-    desc: '风电/光伏发电功率预测、气象数据、消纳分析、并网运行数据',
-    count: '28项',
-    color: '#2e7d32',
+    icon: '🔐',
+    title: '隐私计算服务',
+    desc: '基于联邦学习、安全多方计算等技术，实现数据"可用不可见"的安全计算。',
+    color: '#00B42A',
   },
   {
-    icon: <ThunderIcon />,
-    title: '气象环境数据',
-    desc: '风速风向、辐照度、温度湿度、降水预报、极端天气预警',
-    count: '18项',
-    color: '#0288d1',
+    icon: '⛓️',
+    title: '区块链存证',
+    desc: '利用区块链不可篡改特性，为数据交易、操作审计提供可信存证服务。',
+    color: '#0FC6C2',
   },
   {
-    icon: <ServerIcon />,
-    title: '设备状态数据',
-    desc: '变压器、开关柜、换流阀等设备的运行参数、缺陷记录、检修数据',
-    count: '25项',
-    color: '#ed6c02',
+    icon: '📝',
+    title: '智能合约管理',
+    desc: '支持数据交易、结算、分润等业务的智能合约编写、部署和执行。',
+    color: '#722ED1',
   },
   {
-    icon: <InstitutionIcon />,
-    title: '电力市场数据',
-    desc: '电价行情、交易量、市场供需、结算数据、碳排放配额',
-    count: '15项',
-    color: '#7b1fa2',
+    icon: '📊',
+    title: '数据质量评估',
+    desc: '提供数据完整性、准确性、一致性等多维度质量评估和监控服务。',
+    color: '#F5A623',
   },
   {
-    icon: <PlantumlIcon />,
-    title: '碳管理数据',
-    desc: '碳排放核算、碳足迹追踪、绿证交易、碳中和路径分析',
-    count: '21项',
-    color: '#00897b',
+    icon: '🤝',
+    title: '供需智能撮合',
+    desc: '基于AI算法智能匹配数据供需双方，提高数据流通效率和精准度。',
+    color: '#F5222D',
   },
 ];
 
@@ -64,34 +54,44 @@ const ProductsSection: React.FC = () => {
   return (
     <section id="products" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="text-center mb-10">
-          <Tag>数据服务</Tag>
-          <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">数据产品与服务</h3>
-          <p className="text-sm text-gray-600 mt-2 max-w-xl mx-auto">
-            覆盖电力、能源及跨行业数据融合应用，提供160余项标准化数据资源，支持即插即用
+        <div className="text-center mb-12">
+          <h2 className="section-title">核心数据服务</h2>
+          <p className="section-subtitle">
+            提供数据全生命周期服务，保障数据安全、可信、高效流通
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {DATA_PRODUCTS.map((p) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {PRODUCTS.map((product) => (
             <div
-              key={p.title}
-              className="rounded-xl bg-white border border-gray-200 cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg group"
+              key={product.title}
+              className="card-hover bg-white rounded-xl p-6 cursor-pointer border border-gray-100"
               onClick={() => navigate('/dashboard/data/catalog')}
             >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all duration-300 group-hover:text-white"
-                    style={{ backgroundColor: `${p.color}18`, color: p.color }}
-                  >
-                    {p.icon}
-                  </div>
-                  <Tag>{p.count}</Tag>
-                </div>
-                <h3 className="text-base font-semibold text-gray-800 mb-1">{p.title}</h3>
-                <span className="text-sm text-gray-600">{p.desc}</span>
+              <div
+                className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl mb-4"
+                style={{ backgroundColor: `${product.color}15` }}
+              >
+                {product.icon}
               </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {product.title}
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">
+                {product.desc}
+              </p>
+              <a
+                href="#"
+                className="text-sm font-medium transition-colors duration-200"
+                style={{ color: product.color }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate('/dashboard/data/catalog');
+                }}
+              >
+                了解更多 →
+              </a>
             </div>
           ))}
         </div>

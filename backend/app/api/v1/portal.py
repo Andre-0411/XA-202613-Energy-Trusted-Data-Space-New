@@ -1,11 +1,13 @@
 """
 统一门户 API 端点
-仪表盘数据、快速入口、通知管理、布局配置
+仪表盘数据、快速入口、通知管理、布局配置、公共统计数据
 """
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Depends
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -18,6 +20,86 @@ from app.services import portal_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/stats", summary="公共平台统计数据")
+async def get_public_stats(db: AsyncSession = Depends(get_db)):
+    """
+    获取公共平台统计数据（无需认证）
+
+    返回首页展示的平台整体统计信息。
+    """
+    from app.models.data_asset import DataAsset
+    from app.models.blockchain import BlockchainTransaction, EvidenceRecord
+    from app.models.user import Organization
+    from app.models.service import BillingRecord
+    from app.models.portal_model import ActivityLog
+
+    # 数据资产总数
+    assets_total = (
+        await db.execute(
+            select(func.count()).select_from(DataAsset).where(
+                DataAsset.status != "deleted"
+            )
+        )
+    ).scalar() or 0
+
+    # 交易总笔数（计费记录）
+    transactions_total = (
+        await db.execute(select(func.count()).select_from(BillingRecord))
+    ).scalar() or 0
+
+    # 接入机构数
+    organizations_total = (
+        await db.execute(
+            select(func.count()).select_from(Organization).where(
+                Organization.status == "active"
+            )
+        )
+    ).scalar() or 0
+
+    # 存证总数
+    evidences_total = (
+        await db.execute(select(func.count()).select_from(EvidenceRecord))
+    ).scalar() or 0
+
+    # 今日交易量
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    today_transactions = (
+        await db.execute(
+            select(func.count()).select_from(BillingRecord).where(
+                BillingRecord.created_at >= today_start
+            )
+        )
+    ).scalar() or 0
+
+    # 最近活动（最新 10 条）
+    activities_result = await db.execute(
+        select(ActivityLog)
+        .order_by(ActivityLog.created_at.desc())
+        .limit(10)
+    )
+    recent_activities = []
+    for a in activities_result.scalars().all():
+        details = a.details or {}
+        recent_activities.append({
+            "action": a.action,
+            "resource_type": details.get("resource_type", ""),
+            "resource_id": details.get("resource_id", ""),
+            "timestamp": a.created_at.isoformat() if a.created_at else "",
+        })
+
+    return {
+        "data_assets_total": assets_total,
+        "transactions_total": transactions_total,
+        "organizations_total": organizations_total,
+        "evidences_total": evidences_total,
+        "today_transactions": today_transactions,
+        "system_uptime": 99.97,
+        "recent_activities": recent_activities,
+    }
 
 
 @router.get("/dashboard", response_model=PortalDashboardResponse, summary="获取门户仪表盘")

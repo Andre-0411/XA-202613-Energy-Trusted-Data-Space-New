@@ -363,3 +363,73 @@ async def list_pending_settlements(
         }
         for r in records
     ]
+
+
+async def get_transaction_statistics(db: AsyncSession) -> dict:
+    """
+    获取交易统计
+
+    Returns:
+        包含交易总数、总金额、各状态数量的字典
+    """
+    from app.models.service import BillingRecord
+
+    # 交易总数
+    total = (await db.execute(
+        select(func.count()).select_from(BillingRecord)
+    )).scalar() or 0
+
+    # 总金额
+    total_amount_result = await db.execute(
+        select(func.coalesce(func.sum(BillingRecord.amount), 0))
+    )
+    total_amount = float(total_amount_result.scalar() or 0)
+
+    # 各状态数量
+    status_result = await db.execute(
+        select(BillingRecord.payment_status, func.count())
+        .group_by(BillingRecord.payment_status)
+    )
+    by_status = {row[0]: row[1] for row in status_result.all()}
+
+    return {
+        "total": total,
+        "total_amount": round(total_amount, 2),
+        "by_status": by_status,
+    }
+
+
+async def get_transaction_trend(db: AsyncSession, days: int = 30) -> list[dict]:
+    """
+    获取交易趋势
+
+    Args:
+        db: 异步数据库会话
+        days: 查询天数，默认 30
+
+    Returns:
+        每日交易数和金额列表，每项包含 date、count、amount
+    """
+    from app.models.service import BillingRecord
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    result = await db.execute(
+        select(
+            func.date(BillingRecord.created_at).label("date"),
+            func.count().label("count"),
+            func.coalesce(func.sum(BillingRecord.amount), 0).label("amount"),
+        )
+        .where(BillingRecord.created_at >= cutoff)
+        .group_by(func.date(BillingRecord.created_at))
+        .order_by(func.date(BillingRecord.created_at))
+    )
+
+    return [
+        {
+            "date": str(row.date),
+            "count": row.count,
+            "amount": round(float(row.amount), 2),
+        }
+        for row in result.all()
+    ]

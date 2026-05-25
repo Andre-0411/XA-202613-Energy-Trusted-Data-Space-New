@@ -1,57 +1,54 @@
 /**
- * ScenariosSection - 核心应用场景区域
+ * ScenariosSection - 典型应用场景区域
+ * 4个场景卡片，左右交替布局
  */
 import React from 'react';
-import { Tag } from 'tdesign-react';
-import {
-  SunnyIcon, ServerIcon, InstitutionIcon, FlashlightIcon,
-} from 'tdesign-icons-react';
 
-/* ===== 应用场景 ===== */
+/* ===== 场景数据 ===== */
 const SCENARIOS = [
   {
-    title: '新能源智能消纳',
-    desc: '融合电网实时运行、气象预测、发电企业数据，构建"选址-并网-调控"全流程服务，提升新能源消纳率。',
-    metrics: [
-      { label: '装机用户数提升', value: '30%' },
-      { label: '弃光率降低', value: '1%' },
-      { label: '电压合格率提升', value: '10%' },
+    icon: '⚡',
+    title: '电网调度数据共享',
+    desc: '基于隐私计算技术，实现电网调度数据在保障安全前提下的跨部门、跨区域共享，提升电网运行效率和可靠性。',
+    points: [
+      '调度数据安全共享',
+      '多级调度协同优化',
+      '实时负荷预测分析',
     ],
-    color: '#2e7d32',
-    icon: <SunnyIcon />,
+    color: '#165DFF',
   },
   {
-    title: '设备智能运维',
-    desc: '汇聚设备运行、缺陷记录、环境信息，为制造商提供真实运行反馈与协同研发支持。',
-    metrics: [
-      { label: '年节省成本', value: '1000万+' },
-      { label: '设备故障率降低', value: '56%' },
-      { label: '运维效率提升', value: '40%' },
+    icon: '☀️',
+    title: '新能源消纳分析',
+    desc: '融合气象、电网、发电等多源数据，构建新能源消纳分析模型，提升新能源并网消纳水平。',
+    points: [
+      '风光功率精准预测',
+      '消纳能力动态评估',
+      '弃电预警与优化',
     ],
-    color: '#ed6c02',
-    icon: <ServerIcon />,
+    color: '#00B42A',
   },
   {
-    title: '电力数据赋能普惠金融',
-    desc: '基于用电行为构建企业信用画像模型，将电表读数转化为信用读数，服务金融机构信贷决策。',
-    metrics: [
-      { label: '服务企业', value: '1000+' },
-      { label: '授信金额', value: '16亿+' },
-      { label: '不良率降低', value: '35%' },
+    icon: '🏭',
+    title: '虚拟电厂运营',
+    desc: '聚合分布式能源资源，通过数据驱动实现虚拟电厂的智能调度和市场化运营。',
+    points: [
+      '分布式资源聚合管理',
+      '需求响应智能调度',
+      '电力市场参与结算',
     ],
-    color: '#1976d2',
-    icon: <InstitutionIcon />,
+    color: '#0FC6C2',
   },
   {
-    title: '虚拟电厂协同调度',
-    desc: '聚合分布式电源、储能、可控负荷，参与电网调峰调频和电力市场交易，实现源网荷储协同优化。',
-    metrics: [
-      { label: '调度响应时间', value: '<500ms' },
-      { label: '消纳率提升', value: '≥3%' },
-      { label: '参与方数量', value: '50+' },
+    icon: '💹',
+    title: '电力交易结算',
+    desc: '基于区块链的电力交易结算系统，实现交易数据可信存证、智能合约自动执行。',
+    points: [
+      '交易数据链上存证',
+      '智能合约自动结算',
+      '多方对账高效协同',
     ],
-    color: '#7b1fa2',
-    icon: <FlashlightIcon />,
+    color: '#722ED1',
   },
 ];
 
@@ -62,42 +59,48 @@ const ScenariosSection: React.FC = () => {
   return (
     <section id="scenarios" className="py-16 md:py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="text-center mb-10">
-          <Tag>应用场景</Tag>
-          <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">核心应用场景</h3>
-          <p className="text-sm text-gray-600 mt-2 max-w-xl mx-auto">
-            围绕电网调度、新能源消纳、虚拟电厂运营、电力市场交易四大核心场景，提供安全可靠的数据要素支撑
+        <div className="text-center mb-12">
+          <h2 className="section-title">典型应用场景</h2>
+          <p className="section-subtitle">
+            深入能源行业核心业务，提供安全可信的数据流通解决方案
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {SCENARIOS.map((s) => (
+        <div className="space-y-12">
+          {SCENARIOS.map((scenario, index) => (
             <div
-              key={s.title}
-              className="rounded-xl bg-white border border-gray-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-md overflow-visible"
+              key={scenario.title}
+              className={`flex flex-col ${index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} gap-8 items-center`}
             >
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ backgroundColor: `${s.color}18`, color: s.color }}
-                  >
-                    {s.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-800">{s.title}</h3>
-                    <span className="text-sm text-gray-600">{s.desc}</span>
-                  </div>
+              {/* 图标区域 */}
+              <div className="w-full md:w-1/2">
+                <div
+                  className="w-full h-64 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: `${scenario.color}10` }}
+                >
+                  <span className="text-8xl">{scenario.icon}</span>
                 </div>
-                <hr className="border-gray-200 my-4" />
-                <div className="grid grid-cols-3 gap-4">
-                  {s.metrics.map((m) => (
-                    <div key={m.label} className="text-center">
-                      <h2 className="text-xl font-semibold text-gray-800">{m.value}</h2>
-                      <span className="text-xs text-gray-500">{m.label}</span>
-                    </div>
+              </div>
+
+              {/* 内容区域 */}
+              <div className="w-full md:w-1/2">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  {scenario.title}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {scenario.desc}
+                </p>
+                <ul className="space-y-3">
+                  {scenario.points.map((point) => (
+                    <li key={point} className="flex items-center gap-3">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: scenario.color }}
+                      />
+                      <span className="text-gray-700">{point}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             </div>
           ))}

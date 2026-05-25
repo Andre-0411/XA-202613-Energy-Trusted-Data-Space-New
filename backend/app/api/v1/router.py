@@ -81,6 +81,8 @@ from app.api.v1 import (
     mqtt_collect,
     data_enhanced,
     llm,
+    health,
+    system_info,
     # 新增业务模块
     org_management,
     connector_manage,
@@ -194,6 +196,8 @@ router.include_router(mqtt_stream.router, prefix="/mqtt/stream", tags=["MQTT数�
 router.include_router(notification.router, prefix="/notifications", tags=["通知公告"])
 router.include_router(system_config.router, prefix="/system/config", tags=["系统配置"])
 router.include_router(audit_log.router, prefix="/audit-logs", tags=["操作日志"])
+router.include_router(health.router, prefix="/health", tags=["健康检查"])
+router.include_router(system_info.router, prefix="/system", tags=["系统信息"])
 
 # 新增业务模块路由
 router.include_router(org_management.router, prefix="/organizations", tags=["机构管理"])

@@ -7,6 +7,7 @@ import { useThemeMode } from './theme';
 // 全局样式
 import './index.css';
 import './theme/global.css';
+import './styles/globals.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
