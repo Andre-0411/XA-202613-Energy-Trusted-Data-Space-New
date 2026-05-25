@@ -174,6 +174,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_env(cls, v: str) -> str:
         """验证运行环境"""
+        v = v.strip()
         allowed = {"development", "staging", "production"}
         if v not in allowed:
             raise ValueError(f"APP_ENV must be one of {allowed}, got '{v}'")
@@ -183,6 +184,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_jwt_algorithm(cls, v: str) -> str:
         """验证 JWT 算法"""
+        v = v.strip()
         allowed = {"HS256", "HS384", "HS512", "RS256", "RS384", "RS512"}
         if v not in allowed:
             raise ValueError(f"JWT_ALGORITHM must be one of {allowed}, got '{v}'")
