@@ -327,10 +327,10 @@ def get_tools_for_agent(agent_type: str, user_permissions: list[str] = None) -> 
     """根据 Agent 类型和用户权限获取可用工具"""
     # Agent 类型与模块映射
     agent_modules = {
-        "query": ["data", "catalog", "metadata", "quality", "market", "system", "org"],
-        "trade": ["product", "contract", "demand", "subscription", "market", "blockchain", "system"],
-        "security": ["security", "evidence", "audit", "policy", "blockchain", "system"],
-        "dispatch": ["compute", "dag", "sandbox", "cluster", "data", "system", "org"],
+        "query": ["data", "catalog", "metadata", "quality", "market", "system", "org", "product", "revenue"],
+        "trade": ["product", "contract", "demand", "subscription", "market", "blockchain", "system", "revenue"],
+        "security": ["security", "evidence", "audit", "policy", "blockchain", "system", "compute"],
+        "dispatch": ["compute", "dag", "sandbox", "cluster", "data", "system", "org", "quality"],
     }
 
     modules = agent_modules.get(agent_type, [])
@@ -596,6 +596,229 @@ def _register_manual_query_tools():
     logger.info(f"Registered {len(manual_tools)} manual query tools")
 
 
+# ==================== 隐私计算工具注册 ====================
+
+def _register_privacy_compute_tools():
+    """注册隐私计算相关工具 — Agent 通过这些工具驱动 FL/MPC/HE/DP 任务"""
+    from langchain_core.tools import tool as _tool_decorator
+
+    privacy_names = {"create_fl_task", "create_mpc_computation", "create_he_computation",
+                     "check_privacy_budget", "get_compute_task_status",
+                     "get_data_quality_report", "recommend_data_products", "assess_data_value"}
+    if any(n in _tool_registry for n in privacy_names):
+        return
+
+    @tool
+    async def create_fl_task(name: str, algorithm: str, participants: str, description: str = "") -> str:
+        """创建联邦学习训练任务。algorithm可选: lr(逻辑回归)/secureboost(安全提升树)/nn(神经网络)/fm(因子分解机)/svd(奇异值分解)/kmeans(K均值聚类)。participants为参与方ID列表的JSON字符串，至少需要2个参与方。用于多方联合建模而不泄露原始数据。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.services.fl_service import submit_fl_training
+
+        try:
+            participant_list = _json.loads(participants) if participants else []
+        except _json.JSONDecodeError:
+            return _json.dumps({"success": False, "error": "participants 必须是合法的 JSON 数组字符串"}, ensure_ascii=False)
+
+        async with AsyncSessionLocal() as session:
+            try:
+                result = await submit_fl_training(
+                    db=session, name=name, algorithm=algorithm,
+                    participants=participant_list,
+                    dataset_config={"description": description} if description else {},
+                    user_id="", organization_id="",
+                )
+                return _json.dumps({"success": True, "result": result}, ensure_ascii=False, default=str)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    @tool
+    async def create_mpc_computation(protocol: str, computation_type: str, parties: str, description: str = "") -> str:
+        """创建MPC安全多方计算任务。protocol可选: spdz(恶意安全)/aby3(半诚实三方)/semi_honest(半诚实两方)/malicious(恶意安全两方)。computation_type可选: addition/multiplication/comparison/aggregation。parties为参与方ID列表的JSON字符串。用于多方联合计算而不泄露各方输入数据。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.services.mpc_service import create_mpc_session
+
+        try:
+            party_list = _json.loads(parties) if parties else []
+        except _json.JSONDecodeError:
+            return _json.dumps({"success": False, "error": "parties 必须是合法的 JSON 数组字符串"}, ensure_ascii=False)
+
+        async with AsyncSessionLocal() as session:
+            try:
+                result = await create_mpc_session(
+                    db=session, protocol=protocol, computation_type=computation_type,
+                    parties=party_list,
+                    config={"description": description} if description else {},
+                )
+                return _json.dumps({"success": True, "result": result}, ensure_ascii=False, default=str)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    @tool
+    async def create_he_computation(scheme: str, operation: str, data_description: str = "") -> str:
+        """创建同态加密计算任务。scheme可选: ckks(近似浮点运算，适合机器学习)/bfv(精确整数运算，适合计数聚合)。operation可选: add/multiply/negate/square/encrypt/decrypt。用于在加密数据上直接执行计算，无需解密。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.services.he_service import create_he_task
+
+        async with AsyncSessionLocal() as session:
+            try:
+                result = await create_he_task(
+                    db=session, scheme=scheme, operation=operation,
+                    config={"data_description": data_description} if data_description else {},
+                    user_id="", organization_id="",
+                )
+                return _json.dumps({"success": True, "result": result}, ensure_ascii=False, default=str)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    @tool
+    async def check_privacy_budget(organization_id: str = "", epsilon_budget: float = 1.0) -> str:
+        """查询差分隐私预算剩余量。返回当前组织的隐私预算消耗情况（epsilon已用/总量、delta已用/总量）。当预算不足时应停止差分隐私查询以保护隐私。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.services.dp_service import get_privacy_budget_status
+
+        async with AsyncSessionLocal() as session:
+            try:
+                result = await get_privacy_budget_status(
+                    db=session, organization_id=organization_id, epsilon_budget=epsilon_budget,
+                )
+                return _json.dumps({"success": True, "result": result}, ensure_ascii=False, default=str)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    @tool
+    async def get_compute_task_status(task_id: str) -> str:
+        """查询计算任务状态（联邦学习/MPC/同态加密/差分隐私等）。返回任务名称、类型、状态、进度百分比、开始时间、结束时间等信息。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.compute_task import ComputeTask
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            try:
+                result = await session.execute(
+                    select(ComputeTask).where(ComputeTask.id == task_id)
+                )
+                task = result.scalar_one_or_none()
+                if not task:
+                    return _json.dumps({"success": False, "error": f"任务 {task_id} 不存在"}, ensure_ascii=False)
+                return _json.dumps({
+                    "success": True,
+                    "result": {
+                        "id": str(task.id), "name": task.name, "task_type": task.task_type,
+                        "status": task.status, "progress": task.progress,
+                        "created_at": task.created_at.isoformat() if task.created_at else None,
+                        "updated_at": task.updated_at.isoformat() if task.updated_at else None,
+                    }
+                }, ensure_ascii=False)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    @tool
+    async def get_data_quality_report(asset_id: str = "", min_score: float = 0.0) -> str:
+        """获取数据质量报告。返回数据资产的质量评分（完整性、准确性、时效性、一致性）、质量等级（excellent/good/fair/poor）和改进建议。可按asset_id指定资产或按min_score筛选高质量数据。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.models.compliance import DataQualityReport
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            try:
+                query = select(DataQualityReport)
+                if asset_id:
+                    import uuid as _uuid
+                    query = query.where(DataQualityReport.asset_id == _uuid.UUID(asset_id))
+                if min_score > 0:
+                    query = query.where(DataQualityReport.overall_score >= min_score)
+                query = query.order_by(DataQualityReport.created_at.desc()).limit(10)
+                result = await session.execute(query)
+                reports = result.scalars().all()
+                return _json.dumps({
+                    "success": True,
+                    "result": {
+                        "total": len(reports),
+                        "reports": [
+                            {
+                                "id": str(r.id), "asset_id": str(r.asset_id),
+                                "overall_score": r.overall_score,
+                                "completeness": getattr(r, "completeness_score", None),
+                                "accuracy": getattr(r, "accuracy_score", None),
+                                "timeliness": getattr(r, "timeliness_score", None),
+                                "consistency": getattr(r, "consistency_score", None),
+                                "grade": getattr(r, "quality_grade", "unknown"),
+                            }
+                            for r in reports
+                        ],
+                    }
+                }, ensure_ascii=False)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    @tool
+    async def recommend_data_products(user_preferences: str = "", limit: int = 5) -> str:
+        """智能推荐数据产品。user_preferences为用户偏好的JSON字符串，可包含industry(行业)、data_type(数据类型)、security_level(安全等级)等字段。基于用户历史订阅和协同过滤算法推荐最相关的数据产品。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.services.matching_service import recommend_products
+
+        try:
+            prefs = _json.loads(user_preferences) if user_preferences else {}
+        except _json.JSONDecodeError:
+            prefs = {}
+
+        async with AsyncSessionLocal() as session:
+            try:
+                result = await recommend_products(db=session, user_preferences=prefs, limit=limit)
+                return _json.dumps({"success": True, "result": result}, ensure_ascii=False, default=str)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    @tool
+    async def assess_data_value(asset_id: str) -> str:
+        """数据资产评估。评估指定数据资产的经济价值，基于数据质量(40%)和使用频次(60%)计算，返回评估得分、质量分、使用次数、预估收益区间。用于数据资产入表和定价参考。"""
+        import json as _json
+        from app.database import AsyncSessionLocal
+        from app.services.revenue_service import assess_asset_value
+
+        async with AsyncSessionLocal() as session:
+            try:
+                result = await assess_asset_value(db=session, asset_id=asset_id)
+                return _json.dumps({"success": True, "result": result}, ensure_ascii=False, default=str)
+            except Exception as e:
+                return _json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    # 注册隐私计算工具
+    privacy_tools = {
+        "create_fl_task": (create_fl_task, "compute", "创建联邦学习训练任务，支持多种FL算法"),
+        "create_mpc_computation": (create_mpc_computation, "compute", "创建MPC安全多方计算任务"),
+        "create_he_computation": (create_he_computation, "compute", "创建同态加密计算任务"),
+        "check_privacy_budget": (check_privacy_budget, "compute", "查询差分隐私预算剩余量"),
+        "get_compute_task_status": (get_compute_task_status, "compute", "查询计算任务状态"),
+        "get_data_quality_report": (get_data_quality_report, "quality", "获取数据质量报告"),
+        "recommend_data_products": (recommend_data_products, "product", "智能推荐数据产品"),
+        "assess_data_value": (assess_data_value, "revenue", "数据资产评估"),
+    }
+
+    for name, (func_obj, module, desc) in privacy_tools.items():
+        _tool_registry[name] = {
+            "func": func_obj,
+            "module": module,
+            "path": f"manual/{name}",
+            "method": "TOOL",
+            "description": desc,
+            "params": [],
+            "auto_generated": False,
+        }
+        if module not in _module_tools:
+            _module_tools[module] = []
+        _module_tools[module].append(name)
+
+    logger.info(f"Registered {len(privacy_tools)} privacy compute tools")
+
+
 # ==================== 初始化 ====================
 
 def initialize_tools(app=None, force: bool = False):
@@ -634,6 +857,9 @@ def initialize_tools(app=None, force: bool = False):
 
     # 注册手动查询工具（这些工具提供关键的数据查询能力）
     _register_manual_query_tools()
+
+    # 注册隐私计算工具
+    _register_privacy_compute_tools()
 
     _initialized = True
     logger.info(f"Tool registry initialized: {registered} tools registered from {len(write_routes)} routes")

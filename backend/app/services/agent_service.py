@@ -691,6 +691,9 @@ AGENT_TOOLS = {
                  list_data_assets, list_data_sources],
     "dispatch": [forecast_load, list_compute_tasks, query_data_catalog, get_system_stats,
                  create_compute_task_tool, list_data_assets, list_organizations],
+    "orchestrator": [query_data_catalog, list_data_assets, list_compute_tasks, get_system_stats,
+                     query_market_price, analyze_security_threats, forecast_load,
+                     list_products, query_blockchain_evidence, list_organizations],
 }
 
 async def _get_or_create_conversation(user_id: str, agent_type: str) -> tuple[str, list]:

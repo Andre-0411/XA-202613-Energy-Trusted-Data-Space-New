@@ -10,7 +10,7 @@ import {
   SendIcon, SearchIcon, DataBaseIcon, SwapIcon, FileSafetyIcon, ThunderIcon,
   RefreshIcon, ChatIcon, Robot1Icon, UserIcon,
   CopyIcon, CheckIcon, DownloadIcon, ChevronDownIcon,
-  FileIcon, MoreIcon, DeleteIcon, AddIcon,
+  FileIcon, MoreIcon, DeleteIcon, AddIcon, AppIcon,
 } from 'tdesign-icons-react';
 import PageHeader, { homeBreadcrumb } from '@/components/PageHeader';
 import type { BreadcrumbItem } from '@/components/PageHeader';
@@ -61,6 +61,25 @@ interface Conversation {
   lastMessage: string;
   timestamp: string;
   messageCount: number;
+}
+
+interface OrchestratorTask {
+  id: string;
+  agent: string;
+  agentLabel: string;
+  task: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: string;
+  progress: number;
+}
+
+interface Recommendation {
+  id: string;
+  name: string;
+  matchScore: number;
+  reason: string;
+  category: string;
+  price: string;
 }
 
 /* ========== Agent 配置 ========== */
@@ -147,6 +166,27 @@ const AGENTS: AgentInfo[] = [
       '查看集群资源使用情况',
       '分析最近一周的性能趋势',
       '生成资源扩容建议报告',
+    ],
+  },
+  {
+    key: 'orchestrator',
+    label: '智能编排Agent',
+    description: '复杂需求拆分与多Agent协同',
+    icon: <AppIcon />,
+    color: '#faad14',
+    welcomeMessage: '你好！我是**智能编排Agent**，可以帮你：\n\n- 分析复杂需求并自动拆分为子任务\n- 智能分配给最合适的Agent执行\n- 协调多个Agent并行工作\n- 汇总各Agent结果生成综合报告\n\n请描述你的复杂需求，我来帮你编排执行！',
+    placeholder: '输入复杂需求，例如：帮我评估山东新能源消纳方案...',
+    capabilities: ['复杂需求分析', '任务智能拆分', '多Agent协同编排', '结果汇总报告'],
+    tools: [
+      { name: 'task_decompose', description: '复杂需求拆分' },
+      { name: 'agent_dispatch', description: 'Agent任务分发' },
+      { name: 'result_aggregate', description: '结果汇总分析' },
+    ],
+    suggestedQuestions: [
+      '帮我评估山东新能源消纳方案',
+      '分析昨天的安全事件并生成报告',
+      '推荐适合我的数据产品',
+      '优化整体系统性能并生成建议',
     ],
   },
 ];
@@ -583,6 +623,317 @@ const ToolCallDisplay: React.FC<{ toolCall: ToolCall; agentColor: string }> = ({
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+/* ========== 隐私计算工具调用展示组件 ========== */
+const PrivacyToolCallDisplay: React.FC<{ toolCall: ToolCall; agentColor: string }> = ({ toolCall, agentColor }) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  // 隐私计算工具图标映射
+  const toolIcons: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+    create_fl_task: { icon: <ThunderIcon />, color: '#1890ff', label: '联邦学习任务' },
+    create_mpc_compute: { icon: <SwapIcon />, color: '#52c41a', label: 'MPC计算' },
+    check_privacy_budget: { icon: <FileSafetyIcon />, color: '#ff4d4f', label: '隐私预算查询' },
+    get_data_quality_report: { icon: <DataBaseIcon />, color: '#722ed1', label: '数据质量报告' },
+    recommend_data_products: { icon: <SearchIcon />, color: '#faad14', label: '数据产品推荐' },
+  };
+  
+  const toolInfo = toolIcons[toolCall.name] || { icon: <Robot1Icon />, color: agentColor, label: toolCall.name };
+  
+  // 解析隐私计算结果
+  const renderPrivacyResult = () => {
+    if (!toolCall.result) return null;
+    
+    try {
+      const result = JSON.parse(toolCall.result);
+      
+      if (toolCall.name === 'create_fl_task') {
+        return (
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-5 h-5 rounded flex items-center justify-center bg-blue-100 text-blue-600">
+                <ThunderIcon style={{ fontSize: '12px' }} />
+              </div>
+              <span className="text-sm font-semibold text-blue-800">联邦学习任务创建成功</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div><span className="text-gray-500">任务ID：</span><span className="font-mono text-blue-600">{result.task_id}</span></div>
+              <div><span className="text-gray-500">参与方：</span><span>{result.participants?.join(', ')}</span></div>
+              <div><span className="text-gray-500">模型类型：</span><span>{result.model_type}</span></div>
+              <div><span className="text-gray-500">状态：</span><Tag variant="light" size="small" theme="success">{result.status}</Tag></div>
+            </div>
+            <div className="mt-2">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-500">训练进度</span>
+                <span className="text-blue-600">{result.progress || 0}%</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-1.5">
+                <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style={{ width: `${result.progress || 0}%` }}></div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      if (toolCall.name === 'create_mpc_compute') {
+        return (
+          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-5 h-5 rounded flex items-center justify-center bg-green-100 text-green-600">
+                <SwapIcon style={{ fontSize: '12px' }} />
+              </div>
+              <span className="text-sm font-semibold text-green-800">MPC计算任务创建成功</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div><span className="text-gray-500">计算ID：</span><span className="font-mono text-green-600">{result.compute_id}</span></div>
+              <div><span className="text-gray-500">计算类型：</span><span>{result.compute_type}</span></div>
+              <div><span className="text-gray-500">参与方：</span><span>{result.participants?.join(', ')}</span></div>
+              <div><span className="text-gray-500">状态：</span><Tag variant="light" size="small" theme="success">{result.status}</Tag></div>
+            </div>
+            <div className="mt-2">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-500">计算进度</span>
+                <span className="text-green-600">{result.progress || 0}%</span>
+              </div>
+              <div className="w-full bg-green-200 rounded-full h-1.5">
+                <div className="bg-green-600 h-1.5 rounded-full transition-all duration-500" style={{ width: `${result.progress || 0}%` }}></div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      if (toolCall.name === 'check_privacy_budget') {
+        return (
+          <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-5 h-5 rounded flex items-center justify-center bg-red-100 text-red-600">
+                <FileSafetyIcon style={{ fontSize: '12px' }} />
+              </div>
+              <span className="text-sm font-semibold text-red-800">隐私预算查询结果</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div><span className="text-gray-500">总预算：</span><span className="font-mono">{result.total_budget}</span></div>
+              <div><span className="text-gray-500">已使用：</span><span className="font-mono text-red-600">{result.used_budget}</span></div>
+              <div><span className="text-gray-500">剩余预算：</span><span className="font-mono text-green-600">{result.remaining_budget}</span></div>
+              <div><span className="text-gray-500">使用率：</span><span className="font-mono">{result.usage_rate}%</span></div>
+            </div>
+            <div className="mt-2">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-500">预算使用情况</span>
+                <span className={result.usage_rate > 80 ? 'text-red-600' : 'text-green-600'}>{result.usage_rate}%</span>
+              </div>
+              <div className="w-full bg-red-200 rounded-full h-1.5">
+                <div 
+                  className={`h-1.5 rounded-full transition-all duration-500 ${result.usage_rate > 80 ? 'bg-red-600' : 'bg-green-600'}`} 
+                  style={{ width: `${result.usage_rate}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    } catch {
+      // 如果不是JSON格式，直接显示文本
+    }
+    
+    return <div className="mt-2 text-xs text-gray-600">{toolCall.result}</div>;
+  };
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden my-2">
+      <button
+        className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-sm"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded flex items-center justify-center" style={{ backgroundColor: `${toolInfo.color}20`, color: toolInfo.color }}>
+            {toolInfo.icon}
+          </div>
+          <span className="font-medium text-gray-700 font-mono text-xs">{toolInfo.label}</span>
+          {toolCall.result && <Tag variant="light" size="small" theme="success">完成</Tag>}
+          {toolCall.duration && <span className="text-xs text-gray-400">{toolCall.duration}</span>}
+        </div>
+        <ChevronDownIcon className={`transition-transform text-gray-400 ${expanded ? 'rotate-180' : ''}`} style={{ fontSize: '14px' }} />
+      </button>
+      {expanded && (
+        <div className="px-3 py-2 border-t border-gray-100 text-xs">
+          <div className="mb-2">
+            <span className="text-gray-500 font-medium">输入参数：</span>
+            <pre className="mt-1 p-2 bg-gray-50 rounded text-gray-600 overflow-x-auto font-mono text-xs">{JSON.stringify(toolCall.args, null, 2)}</pre>
+          </div>
+          {renderPrivacyResult()}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ========== 编排任务展示组件 ========== */
+const OrchestratorTaskDisplay: React.FC<{ tasks: OrchestratorTask[] }> = ({ tasks }) => {
+  const [expanded, setExpanded] = useState(true);
+  
+  const statusColors = {
+    pending: { bg: 'bg-gray-100', text: 'text-gray-600', icon: <MoreIcon /> },
+    running: { bg: 'bg-blue-100', text: 'text-blue-600', icon: <RefreshIcon className="animate-spin" /> },
+    completed: { bg: 'bg-green-100', text: 'text-green-600', icon: <CheckIcon /> },
+    failed: { bg: 'bg-red-100', text: 'text-red-600', icon: <FileSafetyIcon /> },
+  };
+  
+  const agentColors: Record<string, string> = {
+    query: '#1890ff',
+    trade: '#52c41a',
+    security: '#ff4d4f',
+    dispatch: '#722ed1',
+  };
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden my-3">
+      <button
+        className="w-full flex items-center justify-between px-4 py-3 bg-yellow-50 hover:bg-yellow-100 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded flex items-center justify-center bg-yellow-200 text-yellow-700">
+            <AppIcon style={{ fontSize: '14px' }} />
+          </div>
+          <span className="font-semibold text-yellow-800">智能编排任务</span>
+          <Tag variant="light" size="small" theme="warning">{tasks.length}个子任务</Tag>
+        </div>
+        <ChevronDownIcon className={`transition-transform text-yellow-600 ${expanded ? 'rotate-180' : ''}`} style={{ fontSize: '14px' }} />
+      </button>
+      
+      {expanded && (
+        <div className="px-4 py-3 border-t border-yellow-200">
+          {/* 编排流程图 */}
+          <div className="mb-4">
+            <div className="text-xs font-medium text-gray-500 mb-2">编排流程</div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              <div className="flex-shrink-0 px-3 py-2 bg-yellow-100 rounded-lg border border-yellow-300 text-xs font-medium text-yellow-800">
+                需求分析
+              </div>
+              <div className="text-yellow-400">→</div>
+              <div className="flex-shrink-0 px-3 py-2 bg-blue-100 rounded-lg border border-blue-300 text-xs font-medium text-blue-800">
+                任务拆分
+              </div>
+              <div className="text-yellow-400">→</div>
+              <div className="flex-shrink-0 px-3 py-2 bg-purple-100 rounded-lg border border-purple-300 text-xs font-medium text-purple-800">
+                并行执行
+              </div>
+              <div className="text-yellow-400">→</div>
+              <div className="flex-shrink-0 px-3 py-2 bg-green-100 rounded-lg border border-green-300 text-xs font-medium text-green-800">
+                结果汇总
+              </div>
+            </div>
+          </div>
+          
+          {/* 子任务列表 */}
+          <div className="space-y-2">
+            {tasks.map((task, index) => {
+              const statusInfo = statusColors[task.status];
+              const agentColor = agentColors[task.agent] || '#666';
+              
+              return (
+                <div key={task.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                      {index + 1}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div 
+                        className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: `${agentColor}20`, color: agentColor }}
+                      >
+                        <Robot1Icon style={{ fontSize: '10px' }} />
+                      </div>
+                      <span className="text-sm font-medium text-gray-800 truncate">{task.task}</span>
+                      <div className={`px-2 py-0.5 rounded-full text-xs ${statusInfo.bg} ${statusInfo.text}`}>
+                        {statusInfo.icon}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                      <span>执行Agent: <span style={{ color: agentColor }}>{task.agentLabel}</span></span>
+                      <span>•</span>
+                      <span>进度: {task.progress}%</span>
+                    </div>
+                    {task.status === 'running' && (
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                        <div 
+                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" 
+                          style={{ width: `${task.progress}%` }}
+                        ></div>
+                      </div>
+                    )}
+                    {task.result && (
+                      <div className="mt-2 p-2 bg-white rounded border border-gray-200 text-xs text-gray-600">
+                        {task.result}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ========== 智能推荐展示组件 ========== */
+const RecommendationDisplay: React.FC<{ 
+  recommendations: Recommendation[]; 
+  onSelect: (rec: Recommendation) => void;
+}> = ({ recommendations, onSelect }) => {
+  return (
+    <div className="space-y-2">
+      {recommendations.map(rec => (
+        <div 
+          key={rec.id}
+          className="p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
+          onClick={() => onSelect(rec)}
+        >
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-gray-800 truncate">{rec.name}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{rec.category}</div>
+            </div>
+            <div className="flex-shrink-0 ml-2">
+              <div className="text-xs font-bold text-blue-600">{rec.matchScore}%</div>
+              <div className="text-xs text-gray-400">匹配度</div>
+            </div>
+          </div>
+          
+          {/* 匹配度进度条 */}
+          <div className="mb-2">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div 
+                className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" 
+                style={{ width: `${rec.matchScore}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          <div className="text-xs text-gray-600 mb-2 line-clamp-2">{rec.reason}</div>
+          
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-medium text-green-600">{rec.price}</div>
+            <button 
+              className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(rec);
+              }}
+            >
+              询问详情
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
