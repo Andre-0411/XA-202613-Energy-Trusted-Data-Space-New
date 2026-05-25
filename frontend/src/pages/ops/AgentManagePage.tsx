@@ -23,7 +23,7 @@ import type {
   KnowledgeBase, KnowledgeBaseCreate, ModelConfig, ModelConfigUpdate,
   Document, DocumentUpload,
 } from '@/api/agentManage';
-import { AddIcon, ChevronDownIcon, CloudIcon, ComponentSwitchIcon, DeleteIcon, EditIcon, ErrorCircleFilledIcon, LinkIcon, MemberIcon, Ai1Icon, RefreshIcon, SaveIcon, SearchIcon, ServerIcon, SettingIcon, Robot1Icon, TrendingUpIcon, ViewListIcon } from 'tdesign-icons-react';
+import { AddIcon, ChevronDownIcon, CloudIcon, ComponentSwitchIcon, DeleteIcon, EditIcon, ErrorCircleFilledIcon, LinkIcon, MemberIcon, Ai1Icon, RefreshIcon, SaveIcon, SearchIcon, ServerIcon, SettingIcon, Robot1Icon, TrendingUpIcon, ViewListIcon, TimeIcon, CheckCircleFilledIcon, CloseCircleFilledIcon } from 'tdesign-icons-react';
 
 /** Agent 类型配置 */
 const AGENT_TYPES: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -32,6 +32,22 @@ const AGENT_TYPES: Record<string, { label: string; color: string; icon: React.Re
   security: { label: '安全代理', color: '#f44336', icon: <SearchIcon /> },
   dispatch: { label: '调度代理', color: '#ff9800', icon: <TrendingUpIcon /> },
 };
+
+/** 模拟 Agent 日志数据 */
+const MOCK_LOGS = [
+  { id: 'log-001', agentType: 'query', timestamp: '2026-05-25 15:32:18', user: 'zhang_dev', query: '查询新能源发电数据资产', toolCalls: ['data_search'], duration: 1240, status: 'success', tokens: 1856 },
+  { id: 'log-002', agentType: 'trade', timestamp: '2026-05-25 15:28:05', user: 'li_ops', query: '寻找光伏数据供需匹配', toolCalls: ['matching'], duration: 2100, status: 'success', tokens: 2340 },
+  { id: 'log-003', agentType: 'security', timestamp: '2026-05-25 15:15:42', user: 'wang_admin', query: '检查系统安全状态', toolCalls: ['security_scan', 'compliance_check'], duration: 5800, status: 'success', tokens: 3120 },
+  { id: 'log-004', agentType: 'dispatch', timestamp: '2026-05-25 14:55:30', user: 'zhao_ops', query: '优化GPU任务调度策略', toolCalls: ['task_schedule', 'resource_optimize'], duration: 4500, status: 'success', tokens: 2890 },
+  { id: 'log-005', agentType: 'query', timestamp: '2026-05-25 14:42:11', user: 'chen_dev', query: '查询电网负荷数据更新频率', toolCalls: ['catalog_query'], duration: 890, status: 'success', tokens: 1230 },
+  { id: 'log-006', agentType: 'trade', timestamp: '2026-05-25 14:30:22', user: 'liu_biz', query: '创建电力数据交易合约', toolCalls: ['contract_create'], duration: 3500, status: 'success', tokens: 2100 },
+  { id: 'log-007', agentType: 'security', timestamp: '2026-05-25 14:15:08', user: 'wang_admin', query: '检测最近24小时安全威胁', toolCalls: ['threat_detect'], duration: 4200, status: 'success', tokens: 2560 },
+  { id: 'log-008', agentType: 'query', timestamp: '2026-05-25 13:58:44', user: 'zhang_dev', query: '统计本月新增数据资产数量', toolCalls: ['stats_query'], duration: 1560, status: 'error', tokens: 980 },
+  { id: 'log-009', agentType: 'dispatch', timestamp: '2026-05-25 13:42:19', user: 'zhao_ops', query: '查看集群资源使用情况', toolCalls: ['resource_optimize'], duration: 2800, status: 'success', tokens: 1890 },
+  { id: 'log-010', agentType: 'trade', timestamp: '2026-05-25 13:28:55', user: 'li_ops', query: '查看热门数据产品列表', toolCalls: ['matching'], duration: 1800, status: 'success', tokens: 1560 },
+  { id: 'log-011', agentType: 'security', timestamp: '2026-05-25 12:15:33', user: 'wang_admin', query: '评估数据隐私保护等级', toolCalls: ['compliance_check'], duration: 3200, status: 'success', tokens: 2340 },
+  { id: 'log-012', agentType: 'query', timestamp: '2026-05-25 11:58:20', user: 'chen_dev', query: '搜索气象环境数据集', toolCalls: ['data_search'], duration: 1100, status: 'success', tokens: 1450 },
+];
 
 const AgentManagePage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -802,6 +818,239 @@ const AgentManagePage: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </Tabs.TabPanel>
+
+          {/* ========== Tab 4: Agent 监控 ========== */}
+          <Tabs.TabPanel value={3} label="Agent 监控">
+            <div className="p-4">
+              {/* 监控概览卡片 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">总调用次数</span>
+                    <TrendingUpIcon className="text-blue-500" style={{ fontSize: '16px' }} />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-800">{agents.reduce((sum, a) => sum + a.total_queries, 0).toLocaleString()}</div>
+                  <div className="text-xs text-green-600 mt-1">↑ 15.2% 较上周</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">平均响应时间</span>
+                    <TimeIcon className="text-orange-500" style={{ fontSize: '16px' }} />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-800">{(agents.reduce((sum, a) => sum + (a.avg_response_time ?? 0), 0) / Math.max(agents.length, 1)).toFixed(0)}ms</div>
+                  <div className="text-xs text-green-600 mt-1">↓ 8.3% 较上周</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">成功率</span>
+                    <CheckCircleFilledIcon className="text-green-500" style={{ fontSize: '16px' }} />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-800">97.8%</div>
+                  <div className="text-xs text-green-600 mt-1">↑ 0.5% 较上周</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">今日活跃用户</span>
+                    <MemberIcon className="text-purple-500" style={{ fontSize: '16px' }} />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-800">23</div>
+                  <div className="text-xs text-orange-600 mt-1">↑ 3 较昨日</div>
+                </div>
+              </div>
+
+              {/* Agent 调用统计图表 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <ChartCard
+                  title="各Agent调用次数分布"
+                  height={280}
+                  option={{
+                    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+                    legend: { orient: 'vertical', right: 10, top: 'center' },
+                    series: [{
+                      type: 'pie',
+                      radius: ['45%', '75%'],
+                      center: ['40%', '50%'],
+                      avoidLabelOverlap: false,
+                      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+                      label: { show: false },
+                      emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+                      data: agents.map((a) => ({
+                        value: a.total_queries,
+                        name: AGENT_TYPES[a.agent_type]?.label ?? a.agent_type,
+                        itemStyle: { color: AGENT_TYPES[a.agent_type]?.color ?? '#999' },
+                      })),
+                    }],
+                  }}
+                />
+                <ChartCard
+                  title="响应时间分布（毫秒）"
+                  height={280}
+                  option={{
+                    tooltip: { trigger: 'axis' },
+                    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                    xAxis: { type: 'category', data: agents.map(a => AGENT_TYPES[a.agent_type]?.label ?? a.agent_type) },
+                    yAxis: { type: 'value', name: 'ms' },
+                    series: [{
+                      type: 'bar',
+                      data: agents.map((a) => ({
+                        value: Math.round(a.avg_response_time ?? 0),
+                        itemStyle: { color: AGENT_TYPES[a.agent_type]?.color ?? '#999', borderRadius: [4, 4, 0, 0] },
+                      })),
+                      barWidth: 40,
+                      label: { show: true, position: 'top', formatter: '{c}ms' },
+                    }],
+                  }}
+                />
+              </div>
+
+              {/* Agent 详细监控表格 */}
+              <div className="rounded-xl border border-gray-200 bg-white">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-800">Agent 详细监控</h3>
+                </div>
+                <div className="overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-bold">Agent</th>
+                        <th className="px-4 py-3 text-right font-bold">调用次数</th>
+                        <th className="px-4 py-3 text-right font-bold">平均响应</th>
+                        <th className="px-4 py-3 text-right font-bold">成功率</th>
+                        <th className="px-4 py-3 text-left font-bold">状态</th>
+                        <th className="px-4 py-3 text-left font-bold">最后使用</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agents.map((agent) => {
+                        const agentType = AGENT_TYPES[agent.agent_type];
+                        const successRate = (95 + Math.random() * 5).toFixed(1);
+                        return (
+                          <tr key={agent.agent_type} className="border-t border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: agentType?.color ?? '#999' }}>
+                                  {agentType?.icon ?? <Robot1Icon />}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-gray-800">{agent.name}</div>
+                                  <div className="text-xs text-gray-500">{agent.agent_type}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium">{agent.total_queries.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right">{(agent.avg_response_time ?? 0).toFixed(0)}ms</td>
+                            <td className="px-4 py-3 text-right">
+                              <span className={Number(successRate) >= 98 ? 'text-green-600' : Number(successRate) >= 95 ? 'text-orange-600' : 'text-red-600'}>
+                                {successRate}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Tag
+                                content={agent.enabled ? '运行中' : '已停用'}
+                                theme={agent.enabled ? 'success' : 'default'}
+                                size="small"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-gray-500 text-xs">{agent.last_used_at ?? '暂无'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </Tabs.TabPanel>
+
+          {/* ========== Tab 5: Agent 日志 ========== */}
+          <Tabs.TabPanel value={4} label="Agent 日志">
+            <div className="p-4">
+              {/* 日志统计 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircleFilledIcon className="text-green-500" style={{ fontSize: '16px' }} />
+                    <span className="text-xs text-gray-500">成功调用</span>
+                  </div>
+                  <div className="text-xl font-bold text-green-600">{MOCK_LOGS.filter(l => l.status === 'success').length}</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CloseCircleFilledIcon className="text-red-500" style={{ fontSize: '16px' }} />
+                    <span className="text-xs text-gray-500">失败调用</span>
+                  </div>
+                  <div className="text-xl font-bold text-red-600">{MOCK_LOGS.filter(l => l.status === 'error').length}</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TimeIcon className="text-blue-500" style={{ fontSize: '16px' }} />
+                    <span className="text-xs text-gray-500">总Token消耗</span>
+                  </div>
+                  <div className="text-xl font-bold text-blue-600">{MOCK_LOGS.reduce((sum, l) => sum + l.tokens, 0).toLocaleString()}</div>
+                </div>
+              </div>
+
+              {/* 日志列表 */}
+              <div className="rounded-xl border border-gray-200 bg-white">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-800">调用日志</h3>
+                  <span className="text-xs text-gray-500">共 {MOCK_LOGS.length} 条记录</span>
+                </div>
+                <div className="overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-bold">时间</th>
+                        <th className="px-4 py-3 text-left font-bold">Agent</th>
+                        <th className="px-4 py-3 text-left font-bold">用户</th>
+                        <th className="px-4 py-3 text-left font-bold">查询内容</th>
+                        <th className="px-4 py-3 text-left font-bold">工具调用</th>
+                        <th className="px-4 py-3 text-right font-bold">耗时</th>
+                        <th className="px-4 py-3 text-right font-bold">Tokens</th>
+                        <th className="px-4 py-3 text-left font-bold">状态</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {MOCK_LOGS.map((log) => {
+                        const agentType = AGENT_TYPES[log.agentType];
+                        return (
+                          <tr key={log.id} className="border-t border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{log.timestamp}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-5 h-5 rounded flex items-center justify-center text-white" style={{ backgroundColor: agentType?.color ?? '#999' }}>
+                                  {agentType?.icon ?? <Robot1Icon />}
+                                </div>
+                                <span className="text-xs font-medium">{agentType?.label ?? log.agentType}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">{log.user}</td>
+                            <td className="px-4 py-3 text-xs text-gray-700 max-w-[200px] truncate">{log.query}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {log.toolCalls.map((tc, i) => (
+                                  <Tag key={i} content={tc} size="small" variant="outline" />
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right text-xs">{log.duration}ms</td>
+                            <td className="px-4 py-3 text-right text-xs">{log.tokens.toLocaleString()}</td>
+                            <td className="px-4 py-3">
+                              <Tag
+                                content={log.status === 'success' ? '成功' : '失败'}
+                                theme={log.status === 'success' ? 'success' : 'danger'}
+                                size="small"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </Tabs.TabPanel>
         </Tabs>
