@@ -295,12 +295,21 @@ export const routes: RouteObject[] = [
     element: (
       <LazyLoad>
         <SSOCallbackPage />
-              <Route path="mfa-setup" element={<MfaSetupPage />} />
       </LazyLoad>
     ),
   },
   {
     path: '*',
     element: <Navigate to="/" replace />,
+  },
+
+  /* ========== MFA 设置（公开） ========== */
+  {
+    path: '/auth/mfa-setup',
+    element: (
+      <LazyLoad>
+        <MfaSetupPage />
+      </LazyLoad>
+    ),
   },
 ];
