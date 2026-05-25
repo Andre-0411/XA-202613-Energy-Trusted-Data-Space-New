@@ -19,7 +19,7 @@ export function getNftDetail(tokenId: string) {
 }
 
 export function listNfts(params?: PaginatedRequest & { owner?: string; asset_id?: string }) {
-  return request.get<any, ApiResponse<PaginatedResponse<NftAsset>>>('/blockchain/nft', { params });
+  return request.get<any, ApiResponse<PaginatedResponse<NftAsset>>>('/blockchain/nft/', { params });
 }
 
 export function transferNft(tokenId: string, to: string) {
@@ -29,7 +29,7 @@ export function transferNft(tokenId: string, to: string) {
 // ==================== 存证 ====================
 
 export function submitEvidence(data: { evidence_hash: string; evidence_type: string; description?: string }) {
-  return request.post<any, ApiResponse<Evidence>>('/blockchain/evidence', data);
+  return request.post<any, ApiResponse<Evidence>>('/blockchain/evidence/', data);
 }
 
 export function getEvidenceDetail(id: string) {
@@ -41,14 +41,14 @@ export function traceEvidence(hash: string) {
 }
 
 export function queryEvidenceRange(params?: PaginatedRequest & { evidence_type?: string }) {
-  return request.get<any, ApiResponse<PaginatedResponse<Evidence>>>('/blockchain/evidence', { params });
+  return request.get<any, ApiResponse<PaginatedResponse<Evidence>>>('/blockchain/evidence/', { params });
 }
 
 // ==================== 智能合约 ====================
 
 /** 获取合约列表 — 后端返回数组（非分页） */
 export function listContracts() {
-  return request.get<any, ApiResponse<SmartContract[]>>('/blockchain/contracts');
+  return request.get<any, ApiResponse<SmartContract[]>>('/blockchain/contracts/');
 }
 
 export function getContractDetail(id: string) {
