@@ -114,16 +114,8 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.APP_ENV == "development" else [
-        "http://localhost",
-        "http://localhost:80",
-        "http://localhost:5173",
-        "http://10.241.2.64",
-        "http://10.241.2.64:80",
-        "http://10.241.2.64:8080",
-        "http://10.241.2.64:8000",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
