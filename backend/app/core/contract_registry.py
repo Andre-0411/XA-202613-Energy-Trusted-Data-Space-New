@@ -59,7 +59,7 @@ class ContractRegistry:
                             status=info.get('status', 'active'),
                         )
                 logger.info(f"Loaded {len(self._contracts)} contracts from config")
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, PermissionError, IOError) as e:
             logger.warning(f"Failed to load contract config: {e}")
 
     def _save_to_config(self):
@@ -93,7 +93,7 @@ class ContractRegistry:
                 json.dump(config, f, indent=2, ensure_ascii=False)
 
             logger.info(f"Saved {len(self._contracts)} contracts to config")
-        except Exception as e:
+        except (PermissionError, IOError, TypeError) as e:
             logger.error(f"Failed to save contract config: {e}")
 
     def register(self, name: str, address: str, abi: list, version: str = "1.0.0",

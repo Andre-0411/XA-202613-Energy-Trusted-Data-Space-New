@@ -67,7 +67,7 @@ class FiscoWeb3Client:
                 logger.info(f"Connected to FISCO BCOS at {self.config.rpc_url}")
             else:
                 logger.warning(f"Failed to connect to FISCO BCOS at {self.config.rpc_url}")
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError) as e:
             logger.error(f"Error initializing Web3: {e}")
             self._connected = False
 
@@ -255,7 +255,7 @@ class FiscoWeb3Client:
 
         try:
             return self._web3.net.peer_count
-        except Exception:
+        except (ConnectionError, AttributeError):
             return 0
 
     def get_chain_id(self) -> int:

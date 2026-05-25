@@ -6,7 +6,7 @@ import logging
 from typing import Dict, List, Set
 from datetime import datetime, timezone
 
-from fastapi import WebSocket
+from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class WebSocketManager:
         for ws in self._connections[endpoint]:
             try:
                 await ws.send_json(message)
-            except Exception as e:
+            except (WebSocketDisconnect, ConnectionError, RuntimeError) as e:
                 logger.warning(f"WebSocket send failed: {e}")
                 disconnected.add(ws)
 

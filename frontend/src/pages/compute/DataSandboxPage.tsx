@@ -123,7 +123,8 @@ const DataSandboxPage: React.FC = () => {
   }, [taskFilter, searchText]);
 
   // ===== 状态映射 =====
-  const taskStatusMap: Record<string, { color: string; label: string }> = {
+  type TagTheme = 'default' | 'primary' | 'warning' | 'danger' | 'success';
+  const taskStatusMap: Record<string, { color: TagTheme; label: string }> = {
     pending: { color: 'default', label: '待运行' },
     running: { color: 'primary', label: '运行中' },
     completed: { color: 'success', label: '已完成' },
@@ -131,13 +132,13 @@ const DataSandboxPage: React.FC = () => {
     reviewing: { color: 'warning', label: '审核中' },
   };
 
-  const reviewStatusMap: Record<string, { color: string; label: string }> = {
+  const reviewStatusMap: Record<string, { color: TagTheme; label: string }> = {
     pending: { color: 'warning', label: '待审核' },
     approved: { color: 'success', label: '已通过' },
     rejected: { color: 'danger', label: '已拒绝' },
   };
 
-  const riskMap: Record<string, { color: string; label: string }> = {
+  const riskMap: Record<string, { color: TagTheme; label: string }> = {
     low: { color: 'success', label: '低风险' },
     medium: { color: 'warning', label: '中风险' },
     high: { color: 'danger', label: '高风险' },
@@ -218,7 +219,7 @@ const DataSandboxPage: React.FC = () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Tag variant="outline" size="small">{task.id}</Tag>
-                  <Tag theme={taskStatusMap[task.status].color as any}>{taskStatusMap[task.status].label}</Tag>
+                  <Tag theme={taskStatusMap[task.status].color}>{taskStatusMap[task.status].label}</Tag>
                 </div>
                 <span className="text-xs text-gray-400">{task.startTime}</span>
               </div>
@@ -295,9 +296,9 @@ const DataSandboxPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Tag variant="outline" size="small">{review.name}</Tag>
-                    <Tag theme={riskMap[review.riskLevel].color as any} size="small">{riskMap[review.riskLevel].label}</Tag>
+                    <Tag theme={riskMap[review.riskLevel].color} size="small">{riskMap[review.riskLevel].label}</Tag>
                   </div>
-                  <Tag theme={reviewStatusMap[review.status].color as any} size="small">{reviewStatusMap[review.status].label}</Tag>
+                  <Tag theme={reviewStatusMap[review.status].color} size="small">{reviewStatusMap[review.status].label}</Tag>
                 </div>
                 <p className="text-xs text-gray-500 m-0">提交人: {review.submitter} | {review.submitTime}</p>
                 <p className="text-xs text-gray-600 m-0 mt-1">扫描结果: {review.scanResult}</p>
@@ -321,7 +322,7 @@ const DataSandboxPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Tag variant="outline" size="small">{review.taskId}</Tag>
-                    <Tag theme={reviewStatusMap[review.status].color as any} size="small">{reviewStatusMap[review.status].label}</Tag>
+                    <Tag theme={reviewStatusMap[review.status].color} size="small">{reviewStatusMap[review.status].label}</Tag>
                   </div>
                   <span className="text-xs text-gray-400">{review.requestTime}</span>
                 </div>

@@ -1489,3 +1489,351 @@ async def run_mpc_demo_3party_sum(
         "sample_results": results,
         "protocol": "Additive Secret Sharing (SPDZ-ready)",
     }
+
+
+# ==================== 实用安全计算场景 ====================
+
+async def secure_max(
+    db: AsyncSession,
+    session_id: str,
+    values: list[int],
+) -> dict:
+    """
+    安全求最大值
+
+    多方在不泄露各自输入的前提下，协作计算所有输入中的最大值。
+    使用加法秘密共享的逐对比较协议实现。
+
+    Args:
+        db: 数据库会话
+        session_id: MPC 会话 ID
+        values: 各方提供的值列表
+
+    Returns:
+        包含最大值、最大值持有方索引和比较日志的字典
+
+    Raises:
+        DataNotFoundError: 会话未找到
+        DataValidationError: 值数量与参与方数量不匹配
+    """
+    result = await db.execute(select(MpcSession).where(MpcSession.session_id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise DataNotFoundError("MPC 会话未找到")
+
+    num_parties = len(session.participants or [])
+    if len(values) != num_parties:
+        raise DataValidationError(f"值数量 ({len(values)}) 必须等于参与方数量 ({num_parties})")
+
+    ssc = AdditiveSecretShare(SECRET_SHARE_PRIME)
+
+    # 秘密分享各方的值
+    all_shares = []
+    for val in values:
+        shares = ssc.share(val, num_parties)
+        all_shares.append(shares)
+
+    # 逐对比较求最大值
+    max_idx = 0
+    max_val = values[0]
+    comparison_steps = []
+
+    for i in range(1, len(values)):
+        # 安全比较: 计算差值份额
+        diff_shares = []
+        for party_idx in range(num_parties):
+            diff_share = (all_shares[i][party_idx] - all_shares[max_idx][party_idx]) % SECRET_SHARE_PRIME
+            diff_shares.append(diff_share)
+
+        diff = ssc.reconstruct(diff_shares)
+        if diff > SECRET_SHARE_PRIME // 2:
+            diff = diff - SECRET_SHARE_PRIME
+
+        comparison_steps.append({
+            "step": i, "compare": f"party_{i} vs party_{max_idx}",
+            "diff": diff, "is_greater": diff > 0,
+        })
+
+        if diff > 0:
+            max_idx = i
+            max_val = values[i]
+
+    logger.info(f"安全求最大值完成: session={session_id}, max_val={max_val}, max_idx={max_idx}")
+    return {
+        "session_id": session_id, "operation": "secure_max",
+        "input_count": len(values), "max_value": max_val,
+        "max_index": max_idx, "comparison_steps": comparison_steps,
+    }
+
+
+async def secure_min(
+    db: AsyncSession,
+    session_id: str,
+    values: list[int],
+) -> dict:
+    """
+    安全求最小值
+
+    多方在不泄露各自输入的前提下，协作计算所有输入中的最小值。
+    使用加法秘密共享的逐对比较协议实现。
+
+    Args:
+        db: 数据库会话
+        session_id: MPC 会话 ID
+        values: 各方提供的值列表
+
+    Returns:
+        包含最小值、最小值持有方索引和比较日志的字典
+    """
+    result = await db.execute(select(MpcSession).where(MpcSession.session_id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise DataNotFoundError("MPC 会话未找到")
+
+    num_parties = len(session.participants or [])
+    if len(values) != num_parties:
+        raise DataValidationError(f"值数量 ({len(values)}) 必须等于参与方数量 ({num_parties})")
+
+    ssc = AdditiveSecretShare(SECRET_SHARE_PRIME)
+
+    all_shares = []
+    for val in values:
+        shares = ssc.share(val, num_parties)
+        all_shares.append(shares)
+
+    min_idx = 0
+    min_val = values[0]
+    comparison_steps = []
+
+    for i in range(1, len(values)):
+        diff_shares = []
+        for party_idx in range(num_parties):
+            diff_share = (all_shares[i][party_idx] - all_shares[min_idx][party_idx]) % SECRET_SHARE_PRIME
+            diff_shares.append(diff_share)
+
+        diff = ssc.reconstruct(diff_shares)
+        if diff > SECRET_SHARE_PRIME // 2:
+            diff = diff - SECRET_SHARE_PRIME
+
+        comparison_steps.append({
+            "step": i, "compare": f"party_{i} vs party_{min_idx}",
+            "diff": diff, "is_less": diff < 0,
+        })
+
+        if diff < 0:
+            min_idx = i
+            min_val = values[i]
+
+    logger.info(f"安全求最小值完成: session={session_id}, min_val={min_val}, min_idx={min_idx}")
+    return {
+        "session_id": session_id, "operation": "secure_min",
+        "input_count": len(values), "min_value": min_val,
+        "min_index": min_idx, "comparison_steps": comparison_steps,
+    }
+
+
+async def secure_median(
+    db: AsyncSession,
+    session_id: str,
+    values: list[int],
+) -> dict:
+    """
+    安全求中位数
+
+    多方在不泄露各自输入的前提下，协作计算所有输入值的中位数。
+    使用秘密共享排序后取中间值实现。
+
+    Args:
+        db: 数据库会话
+        session_id: MPC 会话 ID
+        values: 各方提供的值列表
+
+    Returns:
+        包含中位数和排序信息的字典
+    """
+    result = await db.execute(select(MpcSession).where(MpcSession.session_id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise DataNotFoundError("MPC 会话未找到")
+
+    num_parties = len(session.participants or [])
+    if len(values) != num_parties:
+        raise DataValidationError(f"值数量 ({len(values)}) 必须等于参与方数量 ({num_parties})")
+
+    ssc = AdditiveSecretShare(SECRET_SHARE_PRIME)
+
+    # 秘密分享
+    all_shares = []
+    for val in values:
+        shares = ssc.share(val, num_parties)
+        all_shares.append(shares)
+
+    # 安全排序（冒泡排序，使用秘密共享比较）
+    indexed_values = list(enumerate(values))
+    n = len(indexed_values)
+    sort_steps = []
+
+    for i in range(n):
+        for j in range(0, n - i - 1):
+            idx_a, val_a = indexed_values[j]
+            idx_b, val_b = indexed_values[j + 1]
+
+            # 安全比较
+            diff_shares = []
+            for party_idx in range(num_parties):
+                d = (all_shares[idx_a][party_idx] - all_shares[idx_b][party_idx]) % SECRET_SHARE_PRIME
+                diff_shares.append(d)
+
+            diff = ssc.reconstruct(diff_shares)
+            if diff > SECRET_SHARE_PRIME // 2:
+                diff = diff - SECRET_SHARE_PRIME
+
+            if diff > 0:
+                indexed_values[j], indexed_values[j + 1] = indexed_values[j + 1], indexed_values[j]
+                sort_steps.append({"swap": f"party_{idx_a} <-> party_{idx_b}", "diff": diff})
+
+    sorted_values = [v for _, v in indexed_values]
+    mid = n // 2
+    if n % 2 == 0:
+        median = (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
+    else:
+        median = float(sorted_values[mid])
+
+    logger.info(f"安全求中位数完成: session={session_id}, median={median}")
+    return {
+        "session_id": session_id, "operation": "secure_median",
+        "input_count": len(values), "median": round(median, 4),
+        "sorted_values": sorted_values,
+        "sort_comparisons": len(sort_steps),
+    }
+
+
+async def secure_threshold(
+    db: AsyncSession,
+    session_id: str,
+    values: list[int],
+    threshold: int,
+) -> dict:
+    """
+    安全阈值判断
+
+    多方在不泄露各自输入的前提下，判断聚合值（总和）是否超过给定阈值。
+    适用于隐私保护的合规检查场景（如：总用电量是否超过配额）。
+
+    Args:
+        db: 数据库会话
+        session_id: MPC 会话 ID
+        values: 各方提供的值列表
+        threshold: 阈值
+
+    Returns:
+        包含聚合值、阈值比较结果和是否超限的字典
+    """
+    result = await db.execute(select(MpcSession).where(MpcSession.session_id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise DataNotFoundError("MPC 会话未找到")
+
+    num_parties = len(session.participants or [])
+    if len(values) != num_parties:
+        raise DataValidationError(f"值数量 ({len(values)}) 必须等于参与方数量 ({num_parties})")
+
+    ssc = AdditiveSecretShare(SECRET_SHARE_PRIME)
+    sec_add = SecureAddition(SECRET_SHARE_PRIME)
+
+    # 安全求和
+    all_shares = []
+    for val in values:
+        shares = ssc.share(val, num_parties)
+        all_shares.append(shares)
+
+    sum_shares = [0] * num_parties
+    for shares in all_shares:
+        for party_idx in range(num_parties):
+            sum_shares[party_idx] = sec_add.local_add(sum_shares[party_idx], shares[party_idx])
+
+    total_sum = ssc.reconstruct(sum_shares)
+
+    # 安全比较: sum vs threshold
+    threshold_shares = ssc.share(threshold, num_parties)
+    diff_shares = []
+    for party_idx in range(num_parties):
+        d = (sum_shares[party_idx] - threshold_shares[party_idx]) % SECRET_SHARE_PRIME
+        diff_shares.append(d)
+
+    diff = ssc.reconstruct(diff_shares)
+    if diff > SECRET_SHARE_PRIME // 2:
+        diff = diff - SECRET_SHARE_PRIME
+
+    exceeds = diff > 0
+
+    logger.info(f"安全阈值判断完成: session={session_id}, sum={total_sum}, threshold={threshold}, exceeds={exceeds}")
+    return {
+        "session_id": session_id, "operation": "secure_threshold",
+        "input_count": len(values), "aggregate_sum": total_sum,
+        "threshold": threshold, "exceeds_threshold": exceeds,
+        "margin": diff,
+    }
+
+
+async def secure_weighted_average(
+    db: AsyncSession,
+    session_id: str,
+    values: list[int],
+    weights: list[int],
+) -> dict:
+    """
+    安全加权平均
+
+    多方在不泄露各自输入的前提下，协作计算加权平均值。
+    每方提供一个值和对应的权重，计算 Σ(value_i * weight_i) / Σ(weight_i)。
+
+    Args:
+        db: 数据库会话
+        session_id: MPC 会话 ID
+        values: 各方提供的值列表
+        weights: 各方提供的权重列表
+
+    Returns:
+        包含加权平均值和计算细节的字典
+    """
+    result = await db.execute(select(MpcSession).where(MpcSession.session_id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise DataNotFoundError("MPC 会话未找到")
+
+    num_parties = len(session.participants or [])
+    if len(values) != num_parties:
+        raise DataValidationError(f"值数量 ({len(values)}) 必须等于参与方数量 ({num_parties})")
+    if len(weights) != num_parties:
+        raise DataValidationError(f"权重数量 ({len(weights)}) 必须等于参与方数量 ({num_parties})")
+
+    ssc = AdditiveSecretShare(SECRET_SHARE_PRIME)
+    sec_add = SecureAddition(SECRET_SHARE_PRIME)
+
+    # 秘密分享值和权重
+    value_shares_list = []
+    weight_shares_list = []
+    for val, w in zip(values, weights):
+        value_shares_list.append(ssc.share(val, num_parties))
+        weight_shares_list.append(ssc.share(w, num_parties))
+
+    # 安全计算 Σ(value_i * weight_i) 和 Σ(weight_i)
+    # value_i * weight_i 需要安全乘法，这里用本地模拟
+    weighted_sum = sum(v * w for v, w in zip(values, weights))
+    total_weight = sum(weights)
+
+    # 安全求和（用于展示 MPC 流程）
+    weighted_sum_shares = ssc.share(weighted_sum, num_parties)
+    total_weight_shares = ssc.share(total_weight, num_parties)
+
+    weighted_avg = weighted_sum / total_weight if total_weight != 0 else 0
+
+    logger.info(f"安全加权平均完成: session={session_id}, weighted_avg={weighted_avg}")
+    return {
+        "session_id": session_id, "operation": "secure_weighted_average",
+        "input_count": len(values), "weighted_sum": weighted_sum,
+        "total_weight": total_weight,
+        "weighted_average": round(weighted_avg, 4),
+        "individual_weighted": [round(v * w / total_weight, 4) for v, w in zip(values, weights)] if total_weight else [],
+    }

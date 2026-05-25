@@ -24,6 +24,7 @@ import ReactFlow, {
   MarkerType,
   Panel,
   type XYPosition,
+  type NodeTypes,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import PageContainer from '@/components/common/PageContainer';
@@ -124,7 +125,7 @@ const DagCustomNode: React.FC<{
   );
 };
 
-const nodeTypes = { dagCustom: DagCustomNode } as any;
+const nodeTypes: NodeTypes = { dagCustom: DagCustomNode };
 
 let nodeIdCounter = 0;
 const getNextNodeId = () => `node-${++nodeIdCounter}`;

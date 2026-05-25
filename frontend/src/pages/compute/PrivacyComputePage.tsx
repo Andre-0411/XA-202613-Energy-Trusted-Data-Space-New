@@ -19,6 +19,17 @@ import ChartCard from '@/components/common/ChartCard';
 
 // ==================== 类型定义 ====================
 
+/** ECharts 提示框参数类型 */
+interface EChartsAxisParam {
+  seriesName: string;
+  value: number;
+  name: string;
+}
+
+interface EChartsHeatmapParam {
+  data: [number, number, number];
+}
+
 type TechType = 'FL' | 'MPC' | 'HE' | 'TEE';
 
 interface TechCard {
@@ -371,7 +382,7 @@ const FlDemo: React.FC = () => {
   const accChartOption = useMemo(() => {
     if (trainingData.length === 0) return {};
     return {
-      tooltip: { trigger: 'axis' as const, formatter: (params: any) => params.map((p: any) => `${p.seriesName}: ${(p.value * 100).toFixed(1)}%`).join('<br/>') },
+      tooltip: { trigger: 'axis' as const, formatter: (params: EChartsAxisParam | EChartsAxisParam[]) => (Array.isArray(params) ? params : [params]).map((p) => `${p.seriesName}: ${(p.value * 100).toFixed(1)}%`).join('<br/>') },
       legend: { data: ['训练准确率', '验证准确率'], top: 0, right: 0 },
       grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       xAxis: { type: 'category' as const, data: trainingData.map((d) => `R${d.round}`), axisLabel: { fontSize: 10 } },
@@ -396,7 +407,7 @@ const FlDemo: React.FC = () => {
     const data: [number, number, number][] = [];
     matrix.forEach((row, i) => row.forEach((val, j) => data.push([j, i, val])));
     return {
-      tooltip: { position: 'top' as const, formatter: (p: any) => `实际: ${labels[p.data[1]]}<br/>预测: ${labels[p.data[0]]}<br/>数量: ${p.data[2]}` },
+      tooltip: { position: 'top' as const, formatter: (p: EChartsHeatmapParam) => `实际: ${labels[p.data[1]]}<br/>预测: ${labels[p.data[0]]}<br/>数量: ${p.data[2]}` },
       grid: { left: '15%', right: '10%', bottom: '15%', top: '5%' },
       xAxis: { type: 'category' as const, data: labels, splitArea: { show: true }, axisLabel: { fontSize: 10 } },
       yAxis: { type: 'category' as const, data: labels, splitArea: { show: true }, axisLabel: { fontSize: 10 } },

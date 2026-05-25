@@ -80,7 +80,7 @@ class TaskScheduler:
             await self._handle_timeout(task_id, coroutine_factory, retry_count)
         except asyncio.CancelledError:
             logger.info(f"Task {task_id} was cancelled")
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Task {task_id} failed: {e}")
             await self._handle_failure(task_id, coroutine_factory, e, retry_count)
         finally:

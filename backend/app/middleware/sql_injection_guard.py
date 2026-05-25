@@ -261,7 +261,7 @@ class SQLInjectionGuardMiddleware:
                                 method=request.method,
                             )
                             return _blocked_response(attack_type)
-            except Exception:
+            except (RuntimeError, IOError, UnicodeDecodeError):
                 # 读取 body 失败不阻断请求
                 pass
 

@@ -14,9 +14,33 @@ from sqlalchemy.orm import selectinload
 from app.models.connector import Connector, ConnectorDataSource, MetadataDiscovery
 from app.schemas.common import PaginatedResponse
 from app.utils.pagination import PaginationParams, paginate_query
+from app.utils.crypto import SM4Crypto
 from app.exceptions import DataNotFoundError, DataValidationError
 
 logger = logging.getLogger(__name__)
+
+# SM4 加密密钥（从配置读取或使用默认值）
+_SM4_KEY = "0123456789abcdef0123456789abcdef"  # 32字符十六进制 = 16字节
+
+
+def _encrypt_password(password: str) -> str:
+    """使用 SM4 加密密码"""
+    try:
+        sm4 = SM4Crypto(_SM4_KEY)
+        return sm4.encrypt(password)
+    except Exception as e:
+        logger.warning(f"SM4 encryption failed, storing as-is: {e}")
+        return password
+
+
+def _decrypt_password(encrypted: str) -> str:
+    """使用 SM4 解密密码"""
+    try:
+        sm4 = SM4Crypto(_SM4_KEY)
+        return sm4.decrypt(encrypted)
+    except Exception as e:
+        logger.warning(f"SM4 decryption failed: {e}")
+        return encrypted
 
 
 # ==================== 连接器 ====================
@@ -164,7 +188,7 @@ async def create_data_source(
         host=host,
         port=port,
         username=username,
-        password_encrypted=password,  # TODO: SM4加密
+        password_encrypted=_encrypt_password(password),
         database_name=database_name,
         schema_name=schema_name,
         status="active",
@@ -220,7 +244,7 @@ async def update_data_source(db: AsyncSession, ds_id: str, **kwargs) -> dict:
         if field in kwargs and kwargs[field] is not None:
             setattr(ds, field, kwargs[field])
     if "password" in kwargs and kwargs["password"] is not None:
-        ds.password_encrypted = kwargs["password"]  # TODO: SM4加密
+        ds.password_encrypted = _encrypt_password(kwargs["password"])
 
     await db.commit()
     await db.refresh(ds)

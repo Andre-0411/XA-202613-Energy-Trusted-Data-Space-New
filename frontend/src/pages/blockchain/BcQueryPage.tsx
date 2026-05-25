@@ -234,7 +234,7 @@ const BcQueryPage: React.FC = () => {
 
   // ===== 查询统计 =====
   const stats = useMemo(() => {
-    const status = chainStatusData as any;
+    const status = chainStatusData as ChainStatusData | null;
     return {
       blockHeight: status?.block_height ?? status?.latest_block ?? 1234567,
       totalTransactions: status?.total_transactions ?? status?.tx_count ?? 15820,
@@ -331,8 +331,22 @@ const BcQueryPage: React.FC = () => {
     }],
   }), []);
 
-  /** 渲染查询结果 */
-  const renderTxResult = () => {
+/** 链状态数据接口 */
+interface ChainStatusData {
+  block_height?: number;
+  latest_block?: number;
+  total_transactions?: number;
+  tx_count?: number;
+  node_count?: number;
+  peers?: number;
+}
+
+interface ConnectionData {
+  connected?: boolean;
+}
+
+/** 渲染查询结果 */
+const renderTxResult = () => {
     if (!txResult) return null;
     return (
       <Card className="mt-4">
