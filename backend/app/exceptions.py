@@ -106,6 +106,24 @@ class DataQualityError(DataError):
         super().__init__(message=message, code=2020)
 
 
+class LifecycleStateError(DataError):
+    """生命周期状态错误"""
+    def __init__(self, message: str = "生命周期状态不允许此操作"):
+        super().__init__(message=message, code=2021)
+
+
+class ContractStateError(DataError):
+    """合约状态错误"""
+    def __init__(self, message: str = "合约状态不允许此操作"):
+        super().__init__(message=message, code=2022)
+
+
+class MatchingError(DataError):
+    """供需匹配错误"""
+    def __init__(self, message: str = "供需匹配操作失败"):
+        super().__init__(message=message, code=2023)
+
+
 # ==================== 计算错误 (3xxx) ====================
 
 class ComputeError(AppException):

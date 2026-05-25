@@ -60,6 +60,8 @@ const NAV_ITEMS: NavItem[] = [
       { label: '元数据管理', path: '/dashboard/data/metadata' },
       { label: '数据血缘', path: '/dashboard/data/lineage' },
       { label: '数据质量', path: '/dashboard/data/quality' },
+      { label: '数据生命周期', path: '/dashboard/data/lifecycle' },
+      { label: '供需撮合', path: '/dashboard/data/matching' },
     ],
   },
   {
@@ -101,6 +103,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: '组织管理', path: '/dashboard/ops/organizations' },
       { label: '服务管理', path: '/dashboard/ops/services' },
       { label: '计费管理', path: '/dashboard/ops/billing' },
+      { label: '收益分配', path: '/dashboard/ops/revenue' },
       { label: '运维监控', path: '/dashboard/ops/monitor' },
       { label: '合规审计', path: '/dashboard/ops/compliance' },
       { label: '运营指标', path: '/dashboard/ops/kpi' },

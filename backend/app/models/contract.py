@@ -47,7 +47,13 @@ class Contract(Base, UUIDMixin):
     expiration_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     blockchain_tx_hash: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     blockchain_contract_address: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", comment="draft/pending_review/active/expired/terminated")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", comment="draft/pending_review/active/expired/terminated/completed/disputed")
+    lifecycle_stage: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, default=None, comment="生命周期阶段"
+    )
+    lifecycle_status: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, default=None, comment="生命周期状态"
+    )
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False,
     )

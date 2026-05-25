@@ -75,6 +75,12 @@ class DataAsset(Base, UUIDMixin, TimestampMixin):
     published_at: Mapped[Optional[datetime]] = mapped_column(
         nullable=True, default=None
     )
+    lifecycle_stage: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, default=None, comment="生命周期阶段"
+    )
+    lifecycle_status: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, default=None, comment="生命周期状态"
+    )
 
     # Relationships
     source: Mapped[Optional["DataSource"]] = relationship(back_populates="assets")
