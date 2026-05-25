@@ -246,19 +246,19 @@ const DataQualityPage: React.FC = () => {
                     </Tag>
                   </td>
                   <td className={`px-4 py-3 font-semibold ${scoreColor(row.completeness)}`}>
-                    {row.completeness.toFixed(1)}
+                    {(row.completeness ?? 0).toFixed(1)}
                   </td>
                   <td className={`px-4 py-3 font-semibold ${scoreColor(row.accuracy)}`}>
-                    {row.accuracy.toFixed(1)}
+                    {(row.accuracy ?? 0).toFixed(1)}
                   </td>
                   <td className={`px-4 py-3 font-semibold ${scoreColor(row.consistency)}`}>
-                    {row.consistency.toFixed(1)}
+                    {(row.consistency ?? 0).toFixed(1)}
                   </td>
                   <td className={`px-4 py-3 font-semibold ${scoreColor(row.timeliness)}`}>
-                    {row.timeliness.toFixed(1)}
+                    {(row.timeliness ?? 0).toFixed(1)}
                   </td>
                   <td className={`px-4 py-3 font-semibold ${scoreColor(row.overall_score)}`}>
-                    {row.overall_score.toFixed(1)}
+                    {(row.overall_score ?? 0).toFixed(1)}
                   </td>
                   <td className="px-4 py-3">
                     <Tag theme={gradeTheme(row.grade)} size="small">{row.grade}</Tag>
@@ -363,7 +363,7 @@ const DataQualityPage: React.FC = () => {
               <div>
                 <p className="text-xs text-gray-500">综合分</p>
                 <p className={`text-sm font-semibold ${scoreColor(reportDetail.overall_score)}`}>
-                  {reportDetail.overall_score.toFixed(1)}
+                  {(reportDetail.overall_score ?? 0).toFixed(1)}
                 </p>
               </div>
             </div>
@@ -377,7 +377,7 @@ const DataQualityPage: React.FC = () => {
                 <div key={dim.label} className="text-center">
                   <p className="text-xs text-gray-500">{dim.label}</p>
                   <p className={`text-lg font-semibold ${scoreColor(dim.value)}`}>
-                    {dim.value.toFixed(1)}
+                    {(dim.value ?? 0).toFixed(1)}
                   </p>
                 </div>
               ))}

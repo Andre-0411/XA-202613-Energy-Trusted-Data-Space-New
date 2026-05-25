@@ -29,7 +29,7 @@ const paymentStatusLabel = (s: string): string => {
   return m[s] ?? s;
 };
 
-const formatAmount = (val: number): string => `¥${val.toFixed(2)}`;
+const formatAmount = (val: number): string => `¥${(val ?? 0).toFixed(2)}`;
 
 const OpsBillingPage: React.FC = () => {
   const queryClient = useQueryClient();

@@ -367,9 +367,9 @@ const ComputeBenchmarkPage: React.FC = () => {
                   <td className="px-4 py-3">
                     <Tag variant="outline">{row.algorithm}</Tag>
                   </td>
-                  <td className="text-right px-4 py-3 font-semibold">{row.avgTime.toFixed(1)}</td>
-                  <td className="text-right px-4 py-3">{row.minTime.toFixed(1)}</td>
-                  <td className="text-right px-4 py-3">{row.maxTime.toFixed(1)}</td>
+                  <td className="text-right px-4 py-3 font-semibold">{(row.avgTime ?? 0).toFixed(1)}</td>
+                  <td className="text-right px-4 py-3">{(row.minTime ?? 0).toFixed(1)}</td>
+                  <td className="text-right px-4 py-3">{(row.maxTime ?? 0).toFixed(1)}</td>
                   <td className="text-right px-4 py-3 font-semibold">{row.throughput.toLocaleString()}</td>
                   <td className="text-right px-4 py-3">
                     <span className={`font-semibold ${row.cpuUsage > 80 ? 'text-red-500' : row.cpuUsage > 60 ? 'text-orange-500' : 'text-green-500'}`}>

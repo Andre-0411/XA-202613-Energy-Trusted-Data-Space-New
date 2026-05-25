@@ -431,7 +431,7 @@ const AgentManagePage: React.FC = () => {
                               </span>
                             </Tooltip>
                             <span className="text-xs text-gray-500">{agent.total_queries} 次查询</span>
-                            <span className="text-xs text-gray-500">{agent.avg_response_time.toFixed(0)}ms</span>
+                            <span className="text-xs text-gray-500">{(agent.avg_response_time ?? 0).toFixed(0)}ms</span>
                             <ChevronDownIcon className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </div>
                         </div>

@@ -169,7 +169,7 @@ const BcSettlementPage: React.FC = () => {
   const columns: Column<Settlement>[] = useMemo(() => [
     { id: 'from_org', label: '发起方', minWidth: 120 },
     { id: 'to_org', label: '接收方', minWidth: 120 },
-    { id: 'amount', label: '金额', minWidth: 100, render: (row) => <span className="font-semibold">¥{row.amount.toFixed(2)}</span> },
+    { id: 'amount', label: '金额', minWidth: 100, render: (row) => <span className="font-semibold">¥{(row.amount ?? 0).toFixed(2)}</span> },
     { id: 'asset_id', label: '关联资产', minWidth: 120 },
     {
       id: 'tx_hash', label: '交易哈希', minWidth: 160,
@@ -307,7 +307,7 @@ const BcSettlementPage: React.FC = () => {
             <div className="flex gap-8">
               <div>
                 <div className="text-xs text-gray-400">金额</div>
-                <div className="text-lg font-bold">¥{detailData.amount.toFixed(2)}</div>
+                <div className="text-lg font-bold">¥{(detailData.amount ?? 0).toFixed(2)}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-400">状态</div>
