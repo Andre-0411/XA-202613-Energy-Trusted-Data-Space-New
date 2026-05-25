@@ -369,9 +369,9 @@ const renderTxResult = () => {
           <Descriptions.Item label="接收方">
             <span className="font-mono text-sm">{txResult.to}</span>
           </Descriptions.Item>
-          <Descriptions.Item label="金额">{parseInt(txResult.value) / 1e18} ETH</Descriptions.Item>
+          <Descriptions.Item label="金额">{txResult.value ? (parseInt(txResult.value) / 1e18).toFixed(4) : "0"} ETH</Descriptions.Item>
           <Descriptions.Item label="Gas">{txResult.gas}</Descriptions.Item>
-          <Descriptions.Item label="Gas Price">{parseInt(txResult.gasPrice) / 1e9} Gwei</Descriptions.Item>
+          <Descriptions.Item label="Gas Price">{txResult.gasPrice ? (parseInt(txResult.gasPrice) / 1e9).toFixed(2) : "0"} Gwei</Descriptions.Item>
           <Descriptions.Item label="Nonce">{txResult.nonce}</Descriptions.Item>
         </Descriptions>
       </Card>
@@ -425,7 +425,7 @@ const renderTxResult = () => {
               {addressResult.isContract ? '合约地址' : '外部地址'}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="余额">{parseInt(addressResult.balance) / 1e18} ETH</Descriptions.Item>
+          <Descriptions.Item label="余额">{addressResult.balance ? (parseInt(addressResult.balance) / 1e18).toFixed(4) : '0'} ETH</Descriptions.Item>
           <Descriptions.Item label="交易数">{addressResult.transactionCount}</Descriptions.Item>
           <Descriptions.Item label="首次出现">{new Date(addressResult.firstSeen).toLocaleString('zh-CN')}</Descriptions.Item>
           <Descriptions.Item label="最后活跃">{new Date(addressResult.lastSeen).toLocaleString('zh-CN')}</Descriptions.Item>
@@ -440,7 +440,7 @@ const renderTxResult = () => {
                 { title: '交易哈希', colKey: 'hash', width: 200, cell: ({ row }) => <span className="font-mono text-xs">{row.hash.slice(0, 16)}...</span> },
                 { title: '发送方', colKey: 'from', width: 180, cell: ({ row }) => <span className="font-mono text-xs">{row.from.slice(0, 16)}...</span> },
                 { title: '接收方', colKey: 'to', width: 180, cell: ({ row }) => <span className="font-mono text-xs">{row.to.slice(0, 16)}...</span> },
-                { title: '金额', colKey: 'value', width: 120, cell: ({ row }) => <span>{parseInt(row.value) / 1e18} ETH</span> },
+                { title: '金额', colKey: 'value', width: 120, cell: ({ row }) => <span>{row.value ? (parseInt(row.value) / 1e18).toFixed(4) : "0"} ETH</span> },
                 { title: '时间', colKey: 'timestamp', width: 160, cell: ({ row }) => new Date(row.timestamp).toLocaleString('zh-CN') },
                 { title: '状态', colKey: 'status', width: 100, cell: ({ row }) => <Tag theme={row.status === 'success' ? 'success' : 'danger'} size="small">{row.status}</Tag> },
               ]}

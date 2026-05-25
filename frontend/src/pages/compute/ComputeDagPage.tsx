@@ -460,7 +460,7 @@ const ComputeDagPage: React.FC = () => {
           </div>
 
           {/* 中间画布 */}
-          <div className="flex-1 overflow-hidden rounded-xl bg-white border border-gray-200">
+          <div className="flex-1 overflow-hidden rounded-xl bg-white border border-gray-200" style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}>
             <ReactFlow
               nodes={nodes}
               edges={edges}

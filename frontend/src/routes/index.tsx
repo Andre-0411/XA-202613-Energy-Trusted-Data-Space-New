@@ -13,6 +13,7 @@ const LandingPage = lazy(() => import('@/pages/portal/LandingPage'));
 /* ========== 认证页面 ========== */
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const SSOCallbackPage = lazy(() => import('@/pages/auth/SSOCallbackPage'));
+const MfaSetupPage = lazy(() => import('@/pages/auth/MfaSetupPage'));
 
 /* ========== 仪表盘 ========== */
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
@@ -294,6 +295,7 @@ export const routes: RouteObject[] = [
     element: (
       <LazyLoad>
         <SSOCallbackPage />
+              <Route path="mfa-setup" element={<MfaSetupPage />} />
       </LazyLoad>
     ),
   },
