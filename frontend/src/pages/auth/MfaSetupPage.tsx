@@ -56,8 +56,8 @@ const MfaSetupPage: React.FC = () => {
 
   const fetchMfaStatus = async () => {
     try {
-      const res = await request.get('/auth/mfa/status');
-      const data = (res as any)?.data;
+      const res: any = await request.get('/auth/mfa/status');
+      const data = res?.data || res;
       setMfaStatus({
         enabled: data?.enabled ?? false,
         method: data?.method ?? null,
@@ -75,12 +75,12 @@ const MfaSetupPage: React.FC = () => {
   const handleStartSetup = async () => {
     setLoading(true);
     try {
-      const res = await request.post('/auth/mfa/setup', {
+      const res: any = await request.post('/auth/mfa/setup', {
         user_id: 'current',
         method: 'totp',
       });
-      const data = (res as any)?.data;
-      if (data) {
+      const data = res?.data || res;
+      if (data && data.secret) {
         setSetupResult({
           secret: data.secret,
           qrCodeUrl: data.qr_code_url,
@@ -89,6 +89,8 @@ const MfaSetupPage: React.FC = () => {
         });
         setBackupCodes(data.backup_codes || []);
         setSetupStep(1);
+      } else {
+        throw new Error('Invalid response');
       }
     } catch (err: any) {
       // 如果 API 失败，使用本地生成的密钥

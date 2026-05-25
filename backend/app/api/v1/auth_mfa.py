@@ -31,8 +31,10 @@ async def setup_mfa(request: MfaSetupRequest, user: dict = Depends(get_current_u
     生成 TOTP 密钥、二维码 URL、备份码。
     """
     try:
+        # 优先从 JWT 获取 user_id，忽略请求体中的 user_id
+        user_id = user.get("user_id") or user.get("sub") or request.user_id
         result = await mfa_service.setup_mfa(
-            user_id=request.user_id,
+            user_id=user_id,
             method=request.method,
         )
         return result
@@ -50,8 +52,9 @@ async def enable_mfa(request: MfaEnableRequest, user: dict = Depends(get_current
     """
     启用 MFA（需要提供有效验证码确认）
     """
+    user_id = user.get("user_id") or user.get("sub") or request.user_id
     success = await mfa_service.enable_mfa(
-        user_id=request.user_id,
+        user_id=user_id,
         code=request.code,
     )
     if not success:
@@ -64,8 +67,9 @@ async def disable_mfa(request: MfaDisableRequest, user: dict = Depends(get_curre
     """
     禁用 MFA
     """
+    user_id = user.get("user_id") or user.get("sub") or request.user_id
     success = await mfa_service.disable_mfa(
-        user_id=request.user_id,
+        user_id=user_id,
         password=request.password,
         code=request.code,
     )
