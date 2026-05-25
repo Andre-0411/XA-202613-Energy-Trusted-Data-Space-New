@@ -44,6 +44,26 @@ EVIDENCE_TYPE_MAP: dict[str, str] = {
 }
 
 
+@router.get("", response_model=ApiResponse[PaginatedResponse[EvidenceResponse]])
+async def list_evidence(
+    node_type: Optional[str] = Query(None, description="节点类型"),
+    resource_type: Optional[str] = Query(None, description="资源类型"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """存证记录列表"""
+    from app.utils.deps import get_pagination_params, PaginationParams
+    from app.utils.pagination import paginate_query
+    params = PaginationParams(page=1, page_size=20)
+    query = select(EvidenceRecord).order_by(EvidenceRecord.created_at.desc())
+    if node_type:
+        query = query.where(EvidenceRecord.node_type == node_type)
+    if resource_type:
+        query = query.where(EvidenceRecord.resource_type == resource_type)
+    result = await paginate_query(db, query, params, EvidenceResponse)
+    return ApiResponse(data=result)
+
+
 @router.get("/trace", response_model=ApiResponse[list[EvidenceResponse]])
 async def 溯源查询_by_hash(
     hash: str = Query(..., description="存证哈希值"),

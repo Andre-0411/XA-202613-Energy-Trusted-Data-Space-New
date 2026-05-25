@@ -24,8 +24,8 @@ class ComputeTaskResponse(BaseModel):
     task_type: str
     scenario: Optional[str] = None
     dag_id: Optional[str] = None
-    config: dict
-    input_asset_ids: list[str]
+    config: Optional[dict] = None
+    input_asset_ids: Optional[list[str]] = None
     status: str
     progress: int = 0
     result_ref: Optional[str] = None

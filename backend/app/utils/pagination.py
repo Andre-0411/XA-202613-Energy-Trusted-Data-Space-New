@@ -77,6 +77,9 @@ def _model_to_dict(obj) -> dict:
         # UUID 转字符串
         if isinstance(val, uuid.UUID):
             val = str(val)
+        # UUID 列表转字符串列表（ARRAY(UUID) 类型）
+        elif isinstance(val, list):
+            val = [str(v) if isinstance(v, uuid.UUID) else v for v in val]
         # 兜底：如果仍拿到 SQLAlchemy MetaData 对象，替换为空字典
         elif isinstance(val, SAMetaData):
             logger.warning(f"_model_to_dict: column '{col.name}' returned SAMetaData, using fallback")
