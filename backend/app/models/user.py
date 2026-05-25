@@ -22,6 +22,10 @@ class Organization(Base, UUIDMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
     code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    org_type: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="data_consumer",
+        comment="生态角色: data_provider/data_consumer/data_intermediary/data_trustee/data_developer/space_operator/regulator/hybrid"
+    )
     parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
     )
@@ -86,6 +90,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     mfa_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     role: Mapped[str] = mapped_column(String(30), nullable=False, default="user")
+    eco_role: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="data_consumer",
+        comment="生态角色: data_provider/data_consumer/data_intermediary/data_trustee/data_developer/space_operator/regulator/hybrid"
+    )
     department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True
     )

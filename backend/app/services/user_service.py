@@ -24,8 +24,20 @@ from app.core.security import hash_password as _hash_password
 
 logger = logging.getLogger(__name__)
 
-# 支持的角色列表
-VALID_ROLES = {"admin", "data_admin", "user", "auditor", "operator", "security_admin"}
+# 支持的操作角色列表（第二层：用户级）
+VALID_ROLES = {
+    "system_admin", "org_admin", "data_steward", "data_subscriber",
+    "product_developer", "product_publisher", "demand_manager",
+    "approver", "operator", "auditor", "security_admin", "user",
+    # 兼容旧角色
+    "admin", "data_admin", "compute_user",
+}
+
+# 支持的生态角色列表（第一层：组织级）
+VALID_ECO_ROLES = {
+    "data_provider", "data_consumer", "data_intermediary",
+    "data_trustee", "data_developer", "space_operator", "regulator", "hybrid",
+}
 
 # 支持的用户状态
 VALID_STATUSES = {"active", "inactive", "locked"}
