@@ -33,12 +33,12 @@ const ROLE_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: '', label: '全部' },
   { value: 'active', label: '活跃' },
-  { value: 'disabled', label: '禁用' },
-  { value: 'pending', label: '待激活' },
+  { value: 'inactive', label: '禁用' },
+  { value: 'locked', label: '锁定' },
 ];
 
 const userStatusLabel = (s: string): string => {
-  const m: Record<string, string> = { active: '活跃', disabled: '禁用', pending: '待激活' };
+  const m: Record<string, string> = { active: '活跃', inactive: '禁用', locked: '锁定' };
   return m[s] ?? s;
 };
 
@@ -317,29 +317,27 @@ const OpsUsersPage: React.FC = () => {
             <thead className="sticky top-0 bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-bold">用户名</th>
+                <th className="px-4 py-3 text-left font-bold">姓名</th>
                 <th className="px-4 py-3 text-left font-bold">邮箱</th>
-                <th className="px-4 py-3 text-left font-bold">手机</th>
                 <th className="px-4 py-3 text-left font-bold">角色</th>
                 <th className="px-4 py-3 text-left font-bold">组织</th>
-                <th className="px-4 py-3 text-left font-bold">MFA</th>
                 <th className="px-4 py-3 text-left font-bold">状态</th>
                 <th className="px-4 py-3 text-left font-bold">最后登录</th>
-                <th className="px-4 py-3 text-center font-bold w-[160px]">操作</th>
+                <th className="px-4 py-3 text-center font-bold w-[200px]">操作</th>
               </tr>
             </thead>
             <tbody>
               {items.map((row) => (
                 <tr key={row.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium">{row.username}</td>
+                  <td className="px-4 py-3">{(row as any).full_name ?? (row as any).display_name ?? row.username}</td>
                   <td className="px-4 py-3">{row.email ?? '—'}</td>
-                  <td className="px-4 py-3">{row.phone ?? '—'}</td>
                   <td className="px-4 py-3">
                     <Tag variant="outline">{ROLE_OPTIONS.find((o) => o.value === row.role)?.label ?? row.role}</Tag>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs text-gray-600 truncate max-w-[100px] inline-block">{row.organization_id}</span>
                   </td>
-                  <td className="px-4 py-3">{row.mfa_enabled ? '✓' : '—'}</td>
                   <td className="px-4 py-3"><StatusTag status={userStatusLabel(row.status)} /></td>
                   <td className="px-4 py-3">{row.last_login_at ? new Date(row.last_login_at).toLocaleString('zh-CN') : '—'}</td>
                   <td className="px-4 py-3 text-center">
@@ -347,6 +345,19 @@ const OpsUsersPage: React.FC = () => {
                       <Tooltip content="编辑">
                         <span className="cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center text-blue-500" onClick={() => openEditDialog(row)}>
                           <EditIcon />
+                        </span>
+                      </Tooltip>
+                      <Tooltip content={row.status === 'active' ? '禁用' : '启用'}>
+                        <span
+                          className={`cursor-pointer hover:bg-gray-100 rounded p-1 inline-flex items-center ${row.status === 'active' ? 'text-orange-500' : 'text-green-500'}`}
+                          onClick={() => {
+                            updateMut.mutate({
+                              id: row.id,
+                              data: { status: row.status === 'active' ? 'inactive' : 'active' },
+                            });
+                          }}
+                        >
+                          {row.status === 'active' ? <UserBlockedIcon /> : <CheckCircleFilledIcon />}
                         </span>
                       </Tooltip>
                       <Tooltip content="重置密码">
@@ -365,7 +376,7 @@ const OpsUsersPage: React.FC = () => {
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-400">暂无数据</td>
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400">暂无数据</td>
                 </tr>
               )}
             </tbody>
