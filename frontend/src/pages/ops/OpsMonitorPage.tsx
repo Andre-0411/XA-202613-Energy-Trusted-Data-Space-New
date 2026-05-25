@@ -8,6 +8,7 @@ import { Button, Select, Tooltip, Tabs, Progress, Divider } from 'tdesign-react'
 import {
   RefreshIcon, CheckIcon, HeartIcon, ErrorCircleFilledIcon,
   CheckCircleFilledIcon, ServerIcon, CpuIcon, DashboardIcon, WifiIcon,
+  FileIcon, TimeIcon, LinkIcon,
 } from 'tdesign-icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getHealthCheck, getAlerts, acknowledgeAlert } from '@/api/ops';
@@ -190,8 +191,57 @@ const OpsMonitorPage: React.FC = () => {
       <div className="rounded-xl bg-white border border-gray-200">
         <Tabs value={tabValue} onChange={(val) => setTabValue(val as string)}>
           <Tabs.TabPanel value="overview" label="概览">
+            {/* 系统状态卡片 */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
+              <div className="rounded-xl bg-white border border-gray-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <FileIcon className="text-blue-500 text-xl" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">数据库</p>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-sm font-semibold">正常</span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl bg-white border border-gray-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
+                  <ServerIcon className="text-green-500 text-xl" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Redis 缓存</p>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-sm font-semibold">正常</span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl bg-white border border-gray-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+                  <LinkIcon className="text-purple-500 text-xl" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">区块链节点</p>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-sm font-semibold">已连接</span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl bg-white border border-gray-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
+                  <TimeIcon className="text-orange-500 text-xl" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">运行时间</p>
+                  <p className="text-sm font-semibold">99.97%</p>
+                </div>
+              </div>
+            </div>
+
             {/* 图表区域 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 px-4 pb-4">
               <div className="md:col-span-2 rounded-xl bg-white border border-gray-200 p-3 sm:p-4">
                 <h3 className="text-sm sm:text-base font-semibold mb-2">告警趋势分析</h3>
                 <ReactECharts option={alertTrendOption} style={{ height: 300 }} />

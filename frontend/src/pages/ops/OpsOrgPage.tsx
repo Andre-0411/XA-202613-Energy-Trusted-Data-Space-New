@@ -41,6 +41,39 @@ const LEVEL_OPTIONS = [
   { value: 4, label: '四级' },
 ];
 
+const ORG_TYPE_OPTIONS = [
+  { value: 'data_provider', label: '数据提供方' },
+  { value: 'data_consumer', label: '数据使用方' },
+  { value: 'intermediary', label: '中介方' },
+  { value: 'custodian', label: '托管方' },
+  { value: 'developer', label: '开发方' },
+  { value: 'operator', label: '运营者' },
+  { value: 'regulator', label: '监管方' },
+];
+
+const orgTypeLabel = (t: string): string => {
+  const m: Record<string, string> = {
+    data_provider: '数据提供方',
+    data_consumer: '数据使用方',
+    intermediary: '中介方',
+    custodian: '托管方',
+    developer: '开发方',
+    operator: '运营者',
+    regulator: '监管方',
+  };
+  return m[t] ?? t;
+};
+
+const ORG_TYPE_THEME: Record<string, 'success' | 'warning' | 'primary' | 'danger' | 'default'> = {
+  data_provider: 'primary',
+  data_consumer: 'success',
+  intermediary: 'warning',
+  custodian: 'default',
+  developer: 'primary',
+  operator: 'success',
+  regulator: 'danger',
+};
+
 const orgStatusLabel = (s: string): string => {
   const m: Record<string, string> = { ACTIVE: '活跃', DISABLED: '禁用' };
   return m[s] ?? s;
@@ -160,6 +193,7 @@ const OpsOrgPage: React.FC = () => {
   const [formParentId, setFormParentId] = useState<string>('');
   const [formDid, setFormDid] = useState<string>('');
   const [formLevel, setFormLevel] = useState<number>(1);
+  const [formOrgType, setFormOrgType] = useState<string>('');
 
   // ===== 删除确认 =====
   const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
@@ -231,6 +265,7 @@ const OpsOrgPage: React.FC = () => {
     setFormParentId('');
     setFormDid('');
     setFormLevel(1);
+    setFormOrgType('');
   }, []);
 
   const openCreateDialog = useCallback(() => {
@@ -241,6 +276,7 @@ const OpsOrgPage: React.FC = () => {
     setFormParentId(selectedOrg?.id ?? '');
     setFormDid('');
     setFormLevel(selectedOrg ? Math.min(selectedOrg.level + 1, 4) : 1);
+    setFormOrgType('');
     setEditOpen(true);
   }, [selectedOrg]);
 
@@ -252,31 +288,25 @@ const OpsOrgPage: React.FC = () => {
     setFormParentId(org.parent_id ?? '');
     setFormDid(org.did ?? '');
     setFormLevel(org.level);
+    setFormOrgType((org as any).org_type ?? '');
     setEditOpen(true);
   }, []);
 
   const handleSubmit = useCallback(() => {
+    const baseData: any = {
+      name: formName,
+      code: formCode,
+      parent_id: formParentId || null,
+      did: formDid || null,
+      level: formLevel,
+    };
+    if (formOrgType) baseData.org_type = formOrgType;
     if (editMode) {
-      updateMut.mutate({
-        id: editId,
-        data: {
-          name: formName,
-          code: formCode,
-          parent_id: formParentId || null,
-          did: formDid || null,
-          level: formLevel,
-        },
-      });
+      updateMut.mutate({ id: editId, data: baseData });
     } else {
-      createMut.mutate({
-        name: formName,
-        code: formCode,
-        parent_id: formParentId || null,
-        did: formDid || null,
-        level: formLevel,
-      });
+      createMut.mutate(baseData);
     }
-  }, [editMode, editId, formName, formCode, formParentId, formDid, formLevel, createMut, updateMut]);
+  }, [editMode, editId, formName, formCode, formParentId, formDid, formLevel, formOrgType, createMut, updateMut]);
 
   // ===== 面包屑 =====
   const breadcrumbs: BreadcrumbItem[] = useMemo(
@@ -417,10 +447,22 @@ const OpsOrgPage: React.FC = () => {
                 </div>
 
                 {/* 详情字段 */}
-                <div className="flex gap-8 mt-4">
+                <div className="flex gap-8 mt-4 flex-wrap">
                   <div>
                     <span className="text-xs text-gray-400">DID</span>
                     <p className="text-sm font-medium">{selectedOrg.did ?? '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400">生态角色</span>
+                    <div className="mt-0.5">
+                      {(selectedOrg as any).org_type ? (
+                        <Tag theme={ORG_TYPE_THEME[(selectedOrg as any).org_type] ?? 'default'} variant="light">
+                          {orgTypeLabel((selectedOrg as any).org_type)}
+                        </Tag>
+                      ) : (
+                        <span className="text-sm text-gray-400">未设置</span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="text-xs text-gray-400">状态</span>
@@ -532,6 +574,14 @@ const OpsOrgPage: React.FC = () => {
             onChange={(val) => setFormLevel(Number(val))}
             options={LEVEL_OPTIONS}
             style={{ width: '100%' }}
+          />
+          <Select
+            label="生态角色"
+            value={formOrgType}
+            onChange={(val) => setFormOrgType(String(val))}
+            options={[{ label: '请选择生态角色', value: '' }, ...ORG_TYPE_OPTIONS]}
+            style={{ width: '100%' }}
+            clearable
           />
           <Input label="DID（可选）" value={formDid} onChange={(val) => setFormDid(String(val))} placeholder="did:example:..." />
         </div>

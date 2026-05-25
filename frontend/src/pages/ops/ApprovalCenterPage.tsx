@@ -4,7 +4,7 @@
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  Button, Dialog, Input, Select, Tag, Tabs, Textarea,
+  Button, Dialog, Input, Select, Tag, Tabs, Textarea, Form,
   Table, Tooltip, MessagePlugin, Descriptions, Timeline,
 } from 'tdesign-react';
 import {
@@ -154,6 +154,15 @@ const ApprovalCenterPage: React.FC = () => {
   const completedApprovals = useMemo(() => {
     return MOCK_APPROVALS.filter(a => a.status !== 'pending').filter(a => {
       if (keyword && !a.title.includes(keyword) && !a.applicant.includes(keyword)) return false;
+      if (typeFilter && a.type !== typeFilter) return false;
+      return true;
+    });
+  }, [keyword, typeFilter]);
+
+  // 我发起的审批（模拟当前用户发起的）
+  const myApplications = useMemo(() => {
+    return MOCK_APPROVALS.filter(a => {
+      if (keyword && !a.title.includes(keyword)) return false;
       if (typeFilter && a.type !== typeFilter) return false;
       return true;
     });
@@ -457,32 +466,73 @@ const ApprovalCenterPage: React.FC = () => {
           </PageSection>
         </Tabs.TabPanel>
 
-        <Tabs.TabPanel value="stats" label="审批统计">
-          {/* 统计图表 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-            <ChartCard title="审批类型分布" option={typeChartOption} height={300} />
-            <ChartCard title="审批状态统计" option={statusChartOption} height={300} />
-            <ChartCard title="本周审批趋势" option={trendChartOption} height={300} />
-            <ChartCard title="各类型平均审批时间" option={timeChartOption} height={300} />
-          </div>
-
-          {/* 审批效率指标 */}
-          <PageSection title="审批效率指标" titleIcon={<ChartIcon />} className="mt-4">
-            <div className="grid grid-cols-4 gap-4">
-              {[
-                { label: '平均审批时间', value: '1.5天', icon: <TimeIcon className="text-2xl text-blue-500" />, desc: '较上周缩短0.3天' },
-                { label: '今日审批数', value: '12件', icon: <FileIcon className="text-2xl text-green-500" />, desc: '较昨日增加3件' },
-                { label: '超时未审批', value: '2件', icon: <ErrorCircleFilledIcon className="text-2xl text-red-500" />, desc: '需尽快处理' },
-                { label: '审批满意度', value: '96%', icon: <TrendingUpIcon className="text-2xl text-purple-500" />, desc: '较上月提升2%' },
-              ].map((item, i) => (
-                <div key={i} className="p-4 rounded-lg border border-gray-200 bg-white text-center">
-                  {item.icon}
-                  <div className="font-semibold text-2xl mt-2">{item.value}</div>
-                  <div className="text-sm text-gray-500 mt-1">{item.label}</div>
-                  <div className="text-xs text-green-600 mt-1">{item.desc}</div>
-                </div>
-              ))}
+        <Tabs.TabPanel value="my-applications" label="我发起的">
+          {/* 筛选栏 */}
+          <PageSection className="mt-4">
+            <div className="flex flex-wrap gap-3 items-center">
+              <Input
+                prefixIcon={<SearchIcon />}
+                value={keyword}
+                onChange={setKeyword}
+                placeholder="搜索审批标题"
+                style={{ width: 220 }}
+                clearable
+              />
+              <Select
+                value={typeFilter}
+                onChange={setTypeFilter}
+                options={[{ value: '', label: '全部类型' }, ...Object.entries(APPROVAL_TYPE_MAP).map(([k, v]) => ({ value: k, label: v.label }))]}
+                style={{ width: 150 }}
+                clearable
+              />
+              <Button icon={<RefreshIcon />} onClick={() => { setKeyword(''); setTypeFilter(''); }}>重置</Button>
             </div>
+          </PageSection>
+
+          {/* 我发起的表格 */}
+          <PageSection className="mt-4">
+            <Table
+              data={myApplications}
+              columns={[
+                {
+                  title: '审批标题', colKey: 'title', width: 250,
+                  cell: ({ row }: { row: ApprovalItem }) => (
+                    <span className="text-blue-600 cursor-pointer hover:underline" onClick={() => handleViewDetail(row)}>
+                      {row.title}
+                    </span>
+                  ),
+                },
+                {
+                  title: '类型', colKey: 'type', width: 120,
+                  cell: ({ row }: { row: ApprovalItem }) => (
+                    <div className="flex items-center gap-1">
+                      <span>{APPROVAL_TYPE_MAP[row.type].icon}</span>
+                      <span>{APPROVAL_TYPE_MAP[row.type].label}</span>
+                    </div>
+                  ),
+                },
+                {
+                  title: '状态', colKey: 'status', width: 100,
+                  cell: ({ row }: { row: ApprovalItem }) => (
+                    <Tag theme={APPROVAL_STATUS_MAP[row.status].theme} variant="light">
+                      {APPROVAL_STATUS_MAP[row.status].label}
+                    </Tag>
+                  ),
+                },
+                { title: '申请时间', colKey: 'apply_time', width: 160 },
+                { title: '审批人', colKey: 'approver', width: 120, cell: ({ row }: { row: ApprovalItem }) => row.approver || '—' },
+                { title: '审批时间', colKey: 'approve_time', width: 160, cell: ({ row }: { row: ApprovalItem }) => row.approve_time || '—' },
+                {
+                  title: '操作', colKey: 'action', width: 100,
+                  cell: ({ row }: { row: ApprovalItem }) => (
+                    <Button size="small" variant="text" icon={<BrowseIcon />} onClick={() => handleViewDetail(row)}>详情</Button>
+                  ),
+                },
+              ]}
+              rowKey="id"
+              bordered
+              hover
+            />
           </PageSection>
         </Tabs.TabPanel>
       </Tabs>
