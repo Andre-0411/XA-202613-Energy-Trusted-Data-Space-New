@@ -78,60 +78,6 @@ async def disable_mfa(request: MfaDisableRequest, user: dict = Depends(get_curre
     return {"success": True, "message": "MFA 已禁用"}
 
 
-@router.get("/mfa/status/{user_id}", response_model=MfaStatusResponse, summary="获取 MFA 状态")
-async def get_mfa_status(user_id: str, user: dict = Depends(get_current_user)):
-    """
-    获取用户的 MFA 状态
-    """
-    return await mfa_service.get_mfa_status(user_id)
-
-
-@router.post("/mfa/backup-codes/verify", response_model=MfaVerifyResponse, summary="备份码验证")
-async def verify_backup_code(request: BackupCodeVerifyRequest, user: dict = Depends(get_current_user)):
-    """
-    使用备份码验证
-    """
-    return await mfa_service.verify_backup_code(
-        user_id=request.user_id,
-        backup_code=request.backup_code,
-    )
-
-
-@router.post("/mfa/backup-codes/regenerate", response_model=MfaBackupCodesResponse, summary="重新生成备份码")
-async def regenerate_backup_codes(user_id: str):
-    """
-    重新生成备份码
-    """
-    return await mfa_service.regenerate_backup_codes(user_id)
-
-
-@router.get("/mfa/status/{user_id}", response_model=MfaStatusResponse, summary="获取 MFA 状态")
-async def get_mfa_status(user_id: str, user: dict = Depends(get_current_user)):
-    """
-    获取用户的 MFA 状态
-    """
-    return await mfa_service.get_mfa_status(user_id)
-
-
-@router.post("/mfa/backup-codes/verify", response_model=MfaVerifyResponse, summary="备份码验证")
-async def verify_backup_code(request: BackupCodeVerifyRequest, user: dict = Depends(get_current_user)):
-    """
-    使用备份码验证
-    """
-    return await mfa_service.verify_backup_code(
-        user_id=request.user_id,
-        backup_code=request.backup_code,
-    )
-
-
-@router.post("/mfa/backup-codes/regenerate", response_model=MfaBackupCodesResponse, summary="重新生成备份码")
-async def regenerate_backup_codes(user_id: str):
-    """
-    重新生成备份码
-    """
-    return await mfa_service.regenerate_backup_codes(user_id)
-
-
 @router.get("/mfa/status", summary="获取当前用户MFA状态")
 async def get_my_mfa_status(user: dict = Depends(get_current_user)):
     """
@@ -139,6 +85,32 @@ async def get_my_mfa_status(user: dict = Depends(get_current_user)):
     """
     user_id = user.get("sub") or user.get("user_id") or user.get("id", "admin")
     return await mfa_service.get_mfa_status(user_id)
+
+@router.get("/mfa/status/{user_id}", response_model=MfaStatusResponse, summary="获取 MFA 状态")
+async def get_mfa_status(user_id: str, user: dict = Depends(get_current_user)):
+    """
+    获取用户的 MFA 状态
+    """
+    return await mfa_service.get_mfa_status(user_id)
+
+
+@router.post("/mfa/backup-codes/verify", response_model=MfaVerifyResponse, summary="备份码验证")
+async def verify_backup_code(request: BackupCodeVerifyRequest, user: dict = Depends(get_current_user)):
+    """
+    使用备份码验证
+    """
+    return await mfa_service.verify_backup_code(
+        user_id=request.user_id,
+        backup_code=request.backup_code,
+    )
+
+
+@router.post("/mfa/backup-codes/regenerate", response_model=MfaBackupCodesResponse, summary="重新生成备份码")
+async def regenerate_backup_codes(user_id: str):
+    """
+    重新生成备份码
+    """
+    return await mfa_service.regenerate_backup_codes(user_id)
 
 
 @router.get("/mfa/qr-code", summary="生成MFA QR码图片")
