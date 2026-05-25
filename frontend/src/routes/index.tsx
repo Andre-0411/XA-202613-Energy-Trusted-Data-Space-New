@@ -29,6 +29,10 @@ const DataLineagePage = lazy(() => import('@/pages/data/DataLineagePage'));
 const DataQualityPage = lazy(() => import('@/pages/data/DataQualityPage'));
 const DataLifecyclePage = lazy(() => import('@/pages/data/DataLifecyclePage'));
 const DataMatchingPage = lazy(() => import('@/pages/data/DataMatchingPage'));
+const ConnectorManageDataPage = lazy(() => import('@/pages/data/ConnectorManagePage'));
+const DataSubscriptionPage = lazy(() => import('@/pages/data/DataSubscriptionPage'));
+const ProductManageDataPage = lazy(() => import('@/pages/data/ProductManagePage'));
+const DemandHallPage = lazy(() => import('@/pages/data/DemandHallPage'));
 
 /* ========== 计算中心 ========== */
 const ComputeTasksPage = lazy(() => import('@/pages/compute/ComputeTasksPage'));
@@ -57,6 +61,7 @@ const OpsCompliancePage = lazy(() => import('@/pages/ops/OpsCompliancePage'));
 const OpsKpiPage = lazy(() => import('@/pages/ops/OpsKpiPage'));
 const OpsOrgPage = lazy(() => import('@/pages/ops/OpsOrgPage'));
 const OpsRevenuePage = lazy(() => import('@/pages/ops/OpsRevenuePage'));
+const ApprovalCenterPage = lazy(() => import('@/pages/ops/ApprovalCenterPage'));
 
 /* ========== AI Agent 管理 ========== */
 const AgentManagePage = lazy(() => import('@/pages/ops/AgentManagePage'));
@@ -179,6 +184,10 @@ export const routes: RouteObject[] = [
           { path: 'data/quality', element: <LazyLoad><DataQualityPage /></LazyLoad> },
           { path: 'data/lifecycle', element: <LazyLoad><DataLifecyclePage /></LazyLoad> },
           { path: 'data/matching', element: <LazyLoad><DataMatchingPage /></LazyLoad> },
+          { path: 'data/connectors', element: <LazyLoad><ConnectorManageDataPage /></LazyLoad> },
+          { path: 'data/subscription', element: <LazyLoad><DataSubscriptionPage /></LazyLoad> },
+          { path: 'data/products', element: <LazyLoad><ProductManageDataPage /></LazyLoad> },
+          { path: 'data/demands', element: <LazyLoad><DemandHallPage /></LazyLoad> },
           /* ---- 计算中心 ---- */
           { path: 'compute/tasks', element: <LazyLoad><ComputeTasksPage /></LazyLoad> },
           { path: 'compute/create', element: <LazyLoad><ComputeCreatePage /></LazyLoad> },
@@ -208,6 +217,7 @@ export const routes: RouteObject[] = [
           { path: 'ops/system-config', element: <LazyLoad><SystemConfigPage /></LazyLoad> },
           { path: 'ops/audit-logs', element: <LazyLoad><AuditLogPage /></LazyLoad> },
           { path: 'ops/revenue', element: <LazyLoad><OpsRevenuePage /></LazyLoad> },
+          { path: 'ops/approval-center', element: <LazyLoad><ApprovalCenterPage /></LazyLoad> },
           /* ---- 安全中心 ---- */
           { path: 'security/policies', element: <LazyLoad><SecurityPoliciesPage /></LazyLoad> },
           { path: 'security/did', element: <LazyLoad><SecurityDidPage /></LazyLoad> },
