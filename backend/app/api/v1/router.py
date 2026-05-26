@@ -95,6 +95,7 @@ from app.api.v1 import (
     contract_manage,
     connector_file_manage,
     workflow_manage,
+    energy_ml,
 )
 from app.api.v1.endpoints import mqtt_stream, websocket
 
@@ -198,6 +199,9 @@ router.include_router(system_config.router, prefix="/system/config", tags=["系�
 router.include_router(audit_log.router, prefix="/audit-logs", tags=["操作日志"])
 router.include_router(health.router, prefix="/health", tags=["健康检查"])
 router.include_router(system_info.router, prefix="/system", tags=["系统信息"])
+
+# 能源机器学习
+router.include_router(energy_ml.router, prefix="/energy-ml", tags=["能源机器学习"])
 
 # 新增业务模块路由
 router.include_router(org_management.router, prefix="/organizations", tags=["机构管理"])
