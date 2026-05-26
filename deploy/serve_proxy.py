@@ -164,10 +164,16 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def do_OPTIONS(self):
+        # F-003 修复：限制CORS来源
+        origin = self.headers.get("Origin", "")
+        allowed_origins = ["http://10.241.2.64:3000", "http://localhost:3000"]
+        cors_origin = origin if origin in allowed_origins else allowed_origins[0]
+        
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", cors_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol")
+        self.send_header("Access-Control-Allow-Credentials", "true")
         self.end_headers()
 
     def _proxy_request(self, method):
@@ -188,9 +194,15 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             
             self.send_response(resp.status)
             for key, val in resp.getheaders():
-                if key.lower() not in ("transfer-encoding", "connection", "keep-alive"):
+                if key.lower() not in ("transfer-encoding", "connection", "keep-alive", "access-control-allow-origin"):
                     self.send_header(key, val)
-            self.send_header("Access-Control-Allow-Origin", "*")
+            
+            # F-003 修复：限制CORS来源
+            origin = self.headers.get("Origin", "")
+            allowed_origins = ["http://10.241.2.64:3000", "http://localhost:3000"]
+            cors_origin = origin if origin in allowed_origins else allowed_origins[0]
+            self.send_header("Access-Control-Allow-Origin", cors_origin)
+            self.send_header("Access-Control-Allow-Credentials", "true")
             self.end_headers()
             self.wfile.write(data)
             conn.close()

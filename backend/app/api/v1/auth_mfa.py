@@ -89,18 +89,25 @@ async def get_my_mfa_status(user: dict = Depends(get_current_user)):
 @router.get("/mfa/status/{user_id}", response_model=MfaStatusResponse, summary="获取 MFA 状态")
 async def get_mfa_status(user_id: str, user: dict = Depends(get_current_user)):
     """
-    获取用户的 MFA 状态
+    获取用户的 MFA 状态（仅本人或管理员可查看）
     """
+    # F-001 修复：检查权限 - 只能查看自己的MFA状态，或管理员可查看所有人
+    current_user_id = user.get("user_id") or user.get("sub") or user.get("id", "")
+    current_role = user.get("role", "")
+    if user_id != current_user_id and current_role != "admin":
+        raise HTTPException(status_code=403, detail="无权查看其他用户的MFA状态")
     return await mfa_service.get_mfa_status(user_id)
 
 
 @router.post("/mfa/backup-codes/verify", response_model=MfaVerifyResponse, summary="备份码验证")
 async def verify_backup_code(request: BackupCodeVerifyRequest, user: dict = Depends(get_current_user)):
     """
-    使用备份码验证
+    使用备份码验证（从JWT获取user_id，防止越权）
     """
+    # F-002 修复：始终从JWT提取user_id，忽略请求体中的user_id
+    user_id = user.get("user_id") or user.get("sub") or user.get("id", "")
     return await mfa_service.verify_backup_code(
-        user_id=request.user_id,
+        user_id=user_id,
         backup_code=request.backup_code,
     )
 
@@ -115,7 +122,7 @@ async def regenerate_backup_codes(user: dict = Depends(get_current_user)):
 
 
 @router.get("/mfa/qr-code", summary="生成MFA QR码图片")
-async def generate_qr_code(uri: str = Query(..., description="TOTP URI (otpauth://totp/...)")):
+async def generate_qr_code(uri: str = Query(..., description="TOTP URI (otpauth://totp/...)"), user: dict = Depends(get_current_user)):
     """
     根据 TOTP URI 生成 QR 码图片（PNG 格式）
 

@@ -284,11 +284,18 @@ async def override_classification(
 
 @router.post("/{asset_id}/publish", response_model=ApiResponse)
 async def publish_asset(asset_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    """发布至目录"""
+    """发布至目录（仅所有者或管理员可操作）"""
     result = await db.execute(select(DataAsset).where(DataAsset.id == uuid.UUID(asset_id)))
     asset = result.scalar_one_or_none()
     if not asset:
         return ApiResponse(code=2001, message="资产未找到", data=None)
+    
+    # 权限检查：仅所有者或管理员可发布
+    user_role = user.get("role", "")
+    user_id = str(user.get("user_id", ""))
+    if str(asset.created_by) != user_id and user_role not in ("admin", "operator"):
+        return ApiResponse(code=4003, message="无权发布此资产", data=None)
+    
     asset.status = "published"
     asset.published_at = datetime.now(timezone.utc)
     await db.commit()
@@ -297,7 +304,18 @@ async def publish_asset(asset_id: str, db: AsyncSession = Depends(get_db), user:
 
 @router.post("/{asset_id}/preprocess", response_model=ApiResponse)
 async def preprocess_asset(asset_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    """触发边缘预处理"""
+    """触发边缘预处理（仅所有者或管理员可操作）"""
+    result = await db.execute(select(DataAsset).where(DataAsset.id == uuid.UUID(asset_id)))
+    asset = result.scalar_one_or_none()
+    if not asset:
+        return ApiResponse(code=2001, message="资产未找到", data=None)
+    
+    # 权限检查
+    user_role = user.get("role", "")
+    user_id = str(user.get("user_id", ""))
+    if str(asset.created_by) != user_id and user_role not in ("admin", "operator"):
+        return ApiResponse(code=4003, message="无权操作此资产", data=None)
+    
     return ApiResponse(data={"asset_id": asset_id, "status": "preprocessing"})
 
 
