@@ -119,6 +119,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <SecuredIcon />,
     path: '/dashboard/security/policies',
     children: [
+      { label: '安全设置', path: '/security/settings' },
       { label: '安全策略', path: '/dashboard/security/policies' },
       { label: 'DID 身份', path: '/dashboard/security/did' },
       { label: '可验证凭证', path: '/dashboard/security/vc' },

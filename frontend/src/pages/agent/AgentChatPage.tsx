@@ -81,8 +81,9 @@ const AgentChatPage: React.FC = () => {
       const data = res?.data || res;
       const aiMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: data?.reply || data?.message || data?.content || '收到您的请求，正在处理中...', timestamp: new Date().toLocaleTimeString('zh-CN') };
       setMessages(prev => [...prev, aiMsg]);
-    } catch {
-      const aiMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: `您好！我是${selectedAgent.name}，${selectedAgent.description}。当前为演示模式，请连接后端API以获取完整功能。`, timestamp: new Date().toLocaleTimeString('zh-CN') };
+    } catch (error: any) {
+      const errorMsg = error?.message || '网络错误，请稍后重试';
+      const aiMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: `抱歉，消息发送失败：${errorMsg}`, timestamp: new Date().toLocaleTimeString('zh-CN') };
       setMessages(prev => [...prev, aiMsg]);
     } finally {
       setSending(false);

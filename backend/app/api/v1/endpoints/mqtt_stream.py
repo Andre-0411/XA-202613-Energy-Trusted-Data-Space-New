@@ -127,13 +127,19 @@ async def get_device_statistics(
 @router.get("/statistics", response_model=ApiResponse)
 async def get_collection_statistics():
     """获取采集统计信息"""
-    data_store_stats = await mqtt_data_store.get_statistics()
-    enterprise_stats = await mqtt_collector.get_enterprise_statistics()
-
-    return ApiResponse(data={
-        "data_store": data_store_stats,
-        "enterprises": enterprise_stats,
-    })
+    try:
+        data_store_stats = await mqtt_data_store.get_statistics()
+        enterprise_stats = await mqtt_collector.get_enterprise_statistics()
+        return ApiResponse(data={
+            "data_store": data_store_stats,
+            "enterprises": enterprise_stats,
+        })
+    except Exception as e:
+        logger.warning(f"MQTT statistics error: {e}")
+        return ApiResponse(data={
+            "data_store": {"device_count": 0, "online_count": 0, "total_records": 0, "total_alarms": 0},
+            "enterprises": {},
+        })
 
 
 @router.get("/realtime", response_model=ApiResponse)

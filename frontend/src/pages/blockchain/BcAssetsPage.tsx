@@ -24,104 +24,6 @@ import FilterBar from '@/components/common/FilterBar';
 import type { FilterField } from '@/components/common/FilterBar';
 import ReactECharts from 'echarts-for-react';
 
-/* ========== 模拟数据 - NFT资产 ========== */
-const MOCK_NFTS: NftAsset[] = [
-  {
-    token_id: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef12',
-    asset_id: 'asset-001',
-    owner: '0x1234567890abcdef1234567890abcdef12345678',
-    metadata_uri: 'ipfs://QmYwAPJzv5CZsnAzt8auVZRn1iiR7aHnGFdNeSV2yzCAH',
-    status: 'ACTIVE',
-    created_at: '2025-05-20T08:00:00Z',
-    tx_hash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-    metadata: {
-      name: '电网负荷数据NFT',
-      description: '2025年5月电网负荷实时数据集',
-      image: 'https://example.com/nft1.png',
-      attributes: [
-        { trait_type: '数据类型', value: '电网负荷' },
-        { trait_type: '时间范围', value: '2025年5月' },
-        { trait_type: '数据量', value: '1.2GB' },
-      ],
-    },
-  },
-  {
-    token_id: '0x2b3c4d5e6f7890abcdef1234567890abcdef1234',
-    asset_id: 'asset-002',
-    owner: '0x234567890abcdef1234567890abcdef123456789',
-    metadata_uri: 'ipfs://QmYwAPJzv5CZsnAzt8auVZRn1iiR7aHnGFdNeSV2yzCAH',
-    status: 'ACTIVE',
-    created_at: '2025-05-21T10:30:00Z',
-    tx_hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-    metadata: {
-      name: '光伏发电数据NFT',
-      description: '光伏发电站实时发电数据',
-      image: 'https://example.com/nft2.png',
-      attributes: [
-        { trait_type: '数据类型', value: '光伏发电' },
-        { trait_type: '电站容量', value: '100MW' },
-        { trait_type: '更新频率', value: '5分钟' },
-      ],
-    },
-  },
-  {
-    token_id: '0x3c4d5e6f7890abcdef1234567890abcdef123456',
-    asset_id: 'asset-003',
-    owner: '0x34567890abcdef1234567890abcdef1234567890',
-    metadata_uri: 'ipfs://QmYwAPJzv5CZsnAzt8auVZRn1iiR7aHnGFdNeSV2yzCAH',
-    status: 'PENDING',
-    created_at: '2025-05-22T14:15:00Z',
-    tx_hash: '0xdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc',
-    metadata: {
-      name: '碳排放数据NFT',
-      description: '企业碳排放监测数据',
-      image: 'https://example.com/nft3.png',
-      attributes: [
-        { trait_type: '数据类型', value: '碳排放' },
-        { trait_type: '监测周期', value: '月度' },
-        { trait_type: '覆盖企业', value: '50家' },
-      ],
-    },
-  },
-  {
-    token_id: '0x4d5e6f7890abcdef1234567890abcdef12345678',
-    asset_id: 'asset-004',
-    owner: '0x4567890abcdef1234567890abcdef1234567890a',
-    metadata_uri: 'ipfs://QmYwAPJzv5CZsnAzt8auVZRn1iiR7aHnGFdNeSV2yzCAH',
-    status: 'ACTIVE',
-    created_at: '2025-05-23T09:45:00Z',
-    tx_hash: '0x4567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12',
-    metadata: {
-      name: '储能调度数据NFT',
-      description: '储能电站调度运行数据',
-      image: 'https://example.com/nft4.png',
-      attributes: [
-        { trait_type: '数据类型', value: '储能调度' },
-        { trait_type: '储能容量', value: '50MWh' },
-        { trait_type: '调度频率', value: '15分钟' },
-      ],
-    },
-  },
-  {
-    token_id: '0x5e6f7890abcdef1234567890abcdef1234567890',
-    asset_id: 'asset-005',
-    owner: '0x567890abcdef1234567890abcdef1234567890ab',
-    metadata_uri: 'ipfs://QmYwAPJzv5CZsnAzt8auVZRn1iiR7aHnGFdNeSV2yzCAH',
-    status: 'ACTIVE',
-    created_at: '2025-05-24T11:20:00Z',
-    tx_hash: '0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234',
-    metadata: {
-      name: '充电桩运营数据NFT',
-      description: '充电桩运营状态与交易数据',
-      image: 'https://example.com/nft5.png',
-      attributes: [
-        { trait_type: '数据类型', value: '充电桩运营' },
-        { trait_type: '充电桩数量', value: '1000个' },
-        { trait_type: '数据粒度', value: '实时' },
-      ],
-    },
-  },
-];
 
 /* ========== 模拟数据 - 授权记录 ========== */
 interface Authorization {
@@ -258,8 +160,8 @@ const BcAssetsPage: React.FC = () => {
       }),
   });
 
-  const items: NftAsset[] = data?.data?.items ?? MOCK_NFTS;
-  const total: number = data?.data?.total ?? MOCK_NFTS.length;
+  const items: NftAsset[] = data?.data?.items ?? [];
+  const total: number = data?.data?.total ?? 0;
 
   // ===== 统计数据 =====
   const stats = useMemo(() => ({
@@ -270,9 +172,9 @@ const BcAssetsPage: React.FC = () => {
       const today = new Date().toDateString();
       return new Date(item.created_at).toDateString() === today;
     }).length,
-    totalAuthorizations: MOCK_AUTHORIZATIONS.length,
-    activeAuthorizations: MOCK_AUTHORIZATIONS.filter(a => a.status === 'active').length,
-    totalTransfers: MOCK_TRANSFERS.length,
+    totalAuthorizations: 0,
+    activeAuthorizations: 0,
+    totalTransfers: 0,
   }), [total, items]);
 
   // ===== ECharts 配置 =====

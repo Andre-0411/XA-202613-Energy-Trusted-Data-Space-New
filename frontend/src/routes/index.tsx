@@ -81,6 +81,7 @@ const SecurityThreatsPage = lazy(() => import('@/pages/security/SecurityThreatsP
 const SecurityCryptoPage = lazy(() => import('@/pages/security/SecurityCryptoPage'));
 const SecurityZkpPage = lazy(() => import('@/pages/security/SecurityZkpPage'));
 const SecurityLevelsPage = lazy(() => import('@/pages/security/SecurityLevelsPage'));
+const SecuritySettingsPage = lazy(() => import('@/pages/security/SecuritySettingsPage'));
 
 /* ========== 业务场景 ========== */
 const PowerDispatchPage = lazy(() => import('@/pages/portal/PowerDispatchPage'));
@@ -237,6 +238,7 @@ export const routes: RouteObject[] = [
           { path: 'security/crypto', element: <LazyLoad><SecurityCryptoPage /></LazyLoad> },
           { path: 'security/zkp', element: <LazyLoad><SecurityZkpPage /></LazyLoad> },
           { path: 'security/levels', element: <LazyLoad><SecurityLevelsPage /></LazyLoad> },
+          { path: 'security/settings', element: <LazyLoad><SecuritySettingsPage /></LazyLoad> },
           /* ---- 业务场景 ---- */
           { path: 'scenario/power-dispatch', element: <LazyLoad><PowerDispatchPage /></LazyLoad> },
           { path: 'scenario/renewable-energy', element: <LazyLoad><RenewableEnergyPage /></LazyLoad> },
