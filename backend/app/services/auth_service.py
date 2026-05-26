@@ -256,7 +256,7 @@ async def authenticate_password(
     user.last_login_at = datetime.now(timezone.utc)
     await db.commit()
 
-    return await _generate_tokens(user)
+    return await _generate_tokens(user, db)
 
 
 async def authenticate_did(
@@ -304,7 +304,7 @@ async def authenticate_did(
     user.last_login_at = datetime.now(timezone.utc)
     await db.commit()
 
-    return await _generate_tokens(user)
+    return await _generate_tokens(user, db)
 
 
 async def authenticate_certificate(
@@ -343,7 +343,7 @@ async def authenticate_certificate(
                     raise LoginFailedError("账号已被禁用，请联系管理员")
                 user.last_login_at = datetime.now(timezone.utc)
                 await db.commit()
-                return await _generate_tokens(user)
+                return await _generate_tokens(user, db)
         except Exception:
             continue
 
@@ -357,31 +357,35 @@ async def verify_mfa(
     session_id: Optional[str] = None,
 ) -> TokenResponse:
     """
-    MFA 验证 — 使用真实 TOTP 验证
-
-    Args:
-        db: 数据库会话
-        user_id: 用户 ID
-        code: MFA 验证码
-        session_id: MFA 会话 ID（可选）
-
-    Returns:
-        Token 响应
+    MFA 验证 — 使用真实 TOTP 验证（新架构：查询 mfa_configs 表）
     """
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
-    if not user or not user.mfa_enabled:
+    if not user:
+        raise AuthenticationError("用户不存在")
+
+    # 新架构：查询 mfa_configs 表检查 MFA 是否启用
+    from app.models.mfa_model import MfaConfig
+    mfa_result = await db.execute(
+        select(MfaConfig).where(
+            MfaConfig.user_id == str(user.id),
+            MfaConfig.enabled == True,
+        )
+    )
+    mfa_config = mfa_result.scalar_one_or_none()
+
+    if not mfa_config:
         raise AuthenticationError("MFA 未启用")
 
     # 调用真实的 TOTP 验证服务
     from app.services.mfa_service import verify_mfa as mfa_verify
-    mfa_result = await mfa_verify(user_id, code, session_id)
+    verify_result = await mfa_verify(user_id, code, session_id)
 
-    if not mfa_result.verified:
-        raise AuthenticationError(mfa_result.message or "MFA 验证码错误")
+    if not verify_result.verified:
+        raise AuthenticationError(verify_result.message or "MFA 验证码错误")
 
-    return await _generate_tokens(user)
+    return await _generate_tokens(user, db)
 
 
 async def refresh_access_token(
@@ -421,7 +425,7 @@ async def refresh_access_token(
     if user.status != "active":
         raise TokenInvalidError("账号已被禁用，无法刷新令牌")
 
-    return await _generate_tokens(user)
+    return await _generate_tokens(user, db)
 
 
 async def change_password(
@@ -513,7 +517,7 @@ async def get_session(
     )
 
 
-async def _generate_tokens(user: User) -> TokenResponse:
+async def _generate_tokens(user: User, db: AsyncSession = None) -> TokenResponse:
     """
     生成 Token 对
 
@@ -524,7 +528,20 @@ async def _generate_tokens(user: User) -> TokenResponse:
         Token 响应
     """
     permissions = _get_user_permissions(user.role)
-    mfa_required = user.mfa_enabled
+    # 新架构：查询 mfa_configs 表检查 MFA 是否启用
+    mfa_required = False
+    if db is not None:
+        try:
+            from app.models.mfa_model import MfaConfig
+            mfa_check = await db.execute(
+                select(MfaConfig).where(
+                    MfaConfig.user_id == str(user.id),
+                    MfaConfig.enabled == True,
+                )
+            )
+            mfa_required = mfa_check.scalar_one_or_none() is not None
+        except Exception:
+            pass
 
     access_token = create_access_token(
         subject=str(user.id),
