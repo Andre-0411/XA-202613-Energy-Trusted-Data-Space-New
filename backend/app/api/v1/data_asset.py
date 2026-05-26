@@ -113,11 +113,16 @@ async def get_data_asset(asset_id: str, db: AsyncSession = Depends(get_db), user
 
 @router.put("/{asset_id}", response_model=ApiResponse[DataAssetResponse])
 async def update_data_asset(asset_id: str, request: DataAssetCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    """更新资产"""
+    """更新资产（仅所有者或管理员可操作）"""
     result = await db.execute(select(DataAsset).where(DataAsset.id == uuid.UUID(asset_id)))
     asset = result.scalar_one_or_none()
     if not asset:
         return ApiResponse(code=2001, message="资产未找到", data=None)
+    # C6修复：检查所有权或管理员权限
+    user_role = user.get("role", "")
+    user_id = str(user.get("user_id", ""))
+    if str(asset.created_by) != user_id and user_role not in ("admin", "operator"):
+        return ApiResponse(code=4003, message="无权修改此资产", data=None)
     for k, v in request.model_dump(exclude_unset=True).items():
         setattr(asset, k, v)
     await db.commit()
@@ -127,11 +132,16 @@ async def update_data_asset(asset_id: str, request: DataAssetCreate, db: AsyncSe
 
 @router.delete("/{asset_id}", response_model=ApiResponse)
 async def delete_data_asset(asset_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    """删除资产"""
+    """删除资产（仅所有者或管理员可操作）"""
     result = await db.execute(select(DataAsset).where(DataAsset.id == uuid.UUID(asset_id)))
     asset = result.scalar_one_or_none()
     if not asset:
         return ApiResponse(code=2001, message="资产未找到", data=None)
+    # C6修复：检查所有权或管理员权限
+    user_role = user.get("role", "")
+    user_id = str(user.get("user_id", ""))
+    if str(asset.created_by) != user_id and user_role not in ("admin", "operator"):
+        return ApiResponse(code=4003, message="无权删除此资产", data=None)
     asset.status = "deleted"
     await db.commit()
     return ApiResponse(message="已删除")

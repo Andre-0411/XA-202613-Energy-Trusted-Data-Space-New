@@ -141,7 +141,7 @@ interface PaginatedData<T> {
   total: number;
   page: number;
   page_size: number;
-  pages: number;
+  total_pages: number;
 }
 
 // ==================== API 函数 ====================
