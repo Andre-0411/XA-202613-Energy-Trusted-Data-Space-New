@@ -88,6 +88,15 @@ const RenewableEnergyPage = lazy(() => import('@/pages/portal/RenewableEnergyPag
 const VirtualPowerPlantPage = lazy(() => import('@/pages/portal/VirtualPowerPlantPage'));
 const PowerTradingPage = lazy(() => import('@/pages/portal/PowerTradingPage'));
 
+/* ========== AI Agent ========== */
+const AgentChatNewPage = lazy(() => import('@/pages/agent/AgentChatPage'));
+
+/* ========== 联邦学习 ========== */
+const FederatedLearningPage = lazy(() => import('@/pages/compute/FederatedLearningPage'));
+
+/* ========== 跨链互操作 ========== */
+const CrossChainPage = lazy(() => import('@/pages/blockchain/CrossChainPage'));
+
 /* ========== 门户功能 ========== */
 const AnnouncementsPage = lazy(() => import('@/pages/portal/AnnouncementsPage'));
 const PortalProfilePage = lazy(() => import('@/pages/portal/PortalProfilePage'));
@@ -311,5 +320,21 @@ export const routes: RouteObject[] = [
         <MfaSetupPage />
       </LazyLoad>
     ),
+  },
+
+  /* ========== AI Agent 智能助手 ========== */
+  {
+    path: '/agent/chat',
+    element: <LazyLoad><AgentChatNewPage /></LazyLoad>,
+  },
+  /* ========== 联邦学习 ========== */
+  {
+    path: '/compute/federated-learning',
+    element: <LazyLoad><FederatedLearningPage /></LazyLoad>,
+  },
+  /* ========== 跨链互操作 ========== */
+  {
+    path: '/blockchain/cross-chain',
+    element: <LazyLoad><CrossChainPage /></LazyLoad>,
   },
 ];
