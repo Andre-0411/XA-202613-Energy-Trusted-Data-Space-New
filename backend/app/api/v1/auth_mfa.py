@@ -106,10 +106,11 @@ async def verify_backup_code(request: BackupCodeVerifyRequest, user: dict = Depe
 
 
 @router.post("/mfa/backup-codes/regenerate", response_model=MfaBackupCodesResponse, summary="重新生成备份码")
-async def regenerate_backup_codes(user_id: str):
+async def regenerate_backup_codes(user: dict = Depends(get_current_user)):
     """
-    重新生成备份码
+    重新生成备份码（从 JWT 获取 user_id，防止越权）
     """
+    user_id = user.get("user_id") or user.get("sub") or user.get("id", "")
     return await mfa_service.regenerate_backup_codes(user_id)
 
 

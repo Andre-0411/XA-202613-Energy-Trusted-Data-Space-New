@@ -87,6 +87,8 @@ class User(Base, UUIDMixin, TimestampMixin):
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     did: Mapped[Optional[str]] = mapped_column(String(128), unique=True, nullable=True)
     sm2_public_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # NOTE: 旧架构遗留字段，MFA 状态已改为查询 mfa_configs 表（新架构）
+    # 保留字段用于数据库兼容，新代码不应使用 user.mfa_enabled / user.mfa_secret
     mfa_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     role: Mapped[str] = mapped_column(String(30), nullable=False, default="user")

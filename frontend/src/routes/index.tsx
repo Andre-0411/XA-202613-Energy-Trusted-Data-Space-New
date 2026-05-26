@@ -312,13 +312,15 @@ export const routes: RouteObject[] = [
     element: <Navigate to="/" replace />,
   },
 
-  /* ========== MFA 设置（公开） ========== */
+  /* ========== MFA 设置（需认证） ========== */
   {
     path: '/auth/mfa-setup',
     element: (
-      <LazyLoad>
-        <MfaSetupPage />
-      </LazyLoad>
+      <ProtectedRoute>
+        <LazyLoad>
+          <MfaSetupPage />
+        </LazyLoad>
+      </ProtectedRoute>
     ),
   },
 
