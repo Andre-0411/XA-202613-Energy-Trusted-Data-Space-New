@@ -171,12 +171,19 @@ const OrgCertificationPage: React.FC = () => {
     setDetailOpen(true);
   }, []);
 
-  // 模拟文件上传
+  // 文件上传 - 使用真实文件选择
   const handleFileUpload = useCallback((materialType: string) => {
-    // Simulate file selection
-    const fakeFile = new File([''], `${materialType}.pdf`, { type: 'application/pdf' });
-    setUploadedMaterials(prev => ({ ...prev, [materialType]: fakeFile }));
-    MessagePlugin.success(`${materialType} 已选择`);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        setUploadedMaterials(prev => ({ ...prev, [materialType]: file }));
+        MessagePlugin.success(`${materialType} 已选择: ${file.name}`);
+      }
+    };
+    input.click();
   }, []);
 
   // 提交认证申请
